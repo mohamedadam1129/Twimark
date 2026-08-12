@@ -34,11 +34,14 @@ async function lemon(path, values) {
   return { response, data };
 }
 
-function isTwimarkPro(data, env, email) {
+function matchesTwimarkCustomer(data, env, email) {
   const responseEmail = data.meta?.customer_email?.trim().toLowerCase();
   return String(data.meta?.product_id) === String(env.LEMON_PRODUCT_ID)
-    && data.license_key?.status === "active"
     && responseEmail === email.trim().toLowerCase();
+}
+
+function isActiveTwimarkPro(data, env, email) {
+  return data.license_key?.status === "active" && matchesTwimarkCustomer(data, env, email);
 }
 
 async function parseBody(request) {
@@ -62,11 +65,15 @@ export default {
     }
 
     if (url.pathname === "/activate") {
+      const validation = await lemon("validate", { license_key: body.licenseKey.trim() });
+      if (!validation.data.valid || !matchesTwimarkCustomer(validation.data, env, body.email)) {
+        return json(request, env, { error: validation.data.error || "This key is not a valid Twimark Pro license." }, 403);
+      }
       const { data } = await lemon("activate", {
         license_key: body.licenseKey.trim(),
         instance_name: `Twimark ${body.installationId.slice(0, 12)}`
       });
-      if (!data.activated || !isTwimarkPro(data, env, body.email)) {
+      if (!data.activated || !isActiveTwimarkPro(data, env, body.email)) {
         return json(request, env, { error: data.error || "This key is not a valid Twimark Pro license." }, 403);
       }
       return json(request, env, { ok: true, instanceId: data.instance?.id });
@@ -78,7 +85,7 @@ export default {
         license_key: body.licenseKey.trim(),
         instance_id: body.instanceId
       });
-      if (!data.valid || !isTwimarkPro(data, env, body.email)) {
+      if (!data.valid || !isActiveTwimarkPro(data, env, body.email)) {
         return json(request, env, { error: data.error || "Your Twimark Pro license is not active." }, 403);
       }
       return json(request, env, { ok: true });
