@@ -1,0 +1,9 @@
+name = "twimark-license-gateway"
+main = "src/index.js"
+compatibility_date = "2026-08-12"
+
+# Production Chrome Web Store extension origin.
+# LEMON_PRODUCT_ID is deliberately public; it is an allow-list, not a secret.
+[vars]
+LEMON_PRODUCT_ID = "904561"
+ALLOWED_ORIGIN = "chrome-extension://cnhlcmnabmfahcddbgfacjidkebamdbe"

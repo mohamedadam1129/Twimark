@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.1 - Unreleased
+
+- Added server-validated lifetime-license activation for NotebookLM export.
+- Added per-browser license instances and a device-deactivation control.
+- Restricted validation to Lemon Squeezy product ID `904561`.
+
 ## 2.4.0 - Unreleased
 
 - Rebuilt bookmark scanning to tolerate X's virtualized, delayed timeline.

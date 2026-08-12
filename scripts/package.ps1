@@ -9,6 +9,6 @@ $manifest = Get-Content (Join-Path $projectRoot 'manifest.json') -Raw | ConvertF
 $zip = Join-Path $OutputDirectory "twimark-$($manifest.version).zip"
 if (Test-Path $zip) { Remove-Item -LiteralPath $zip -Force }
 
-$files = @('manifest.json', 'background.js', 'content.js', 'popup.html', 'popup.js', 'icon.png')
+$files = @('manifest.json', 'background.js', 'content.js', 'popup.html', 'popup.js', 'license-config.js', 'icon.png')
 Compress-Archive -Path ($files | ForEach-Object { Join-Path $projectRoot $_ }) -DestinationPath $zip -Force
 Write-Host "Created $zip"

@@ -4,8 +4,16 @@ const fullExportBtn = document.getElementById("fullExport");
 const smartSyncBtn = document.getElementById("smartSync");
 const csvBtn = document.getElementById("downloadCsv");
 const markdownBtn = document.getElementById("downloadMarkdown");
+const licenseKeyInput = document.getElementById("licenseKey");
+const licenseEmailInput = document.getElementById("licenseEmail");
+const licenseMessage = document.getElementById("licenseMessage");
+const activateLicenseBtn = document.getElementById("activateLicense");
+const deactivateLicenseBtn = document.getElementById("deactivateLicense");
 
+const LICENSE_STORAGE_KEY = "pro_license_v1";
+const INSTALLATION_STORAGE_KEY = "installation_id_v1";
 let currentState = null;
+let proEntitled = false;
 
 function isBookmarksPage(url) {
   return /(^https:\/\/)(x\.com|twitter\.com)\/i\/bookmarks/.test(url || "");
@@ -15,16 +23,25 @@ function bookmarks() {
   return Object.values(currentState?.bookmarks || {});
 }
 
-function setExportEnabled(enabled) {
-  csvBtn.disabled = !enabled;
-  markdownBtn.disabled = !enabled;
+function releaseConfigured() {
+  return typeof TWIMARK_LICENSE_API_BASE === "string" && /^https:\/\//.test(TWIMARK_LICENSE_API_BASE);
+}
+
+function setLicenseMessage(message) {
+  licenseMessage.textContent = message;
+}
+
+function renderExportAvailability() {
+  const scanReady = currentState?.status === "ready" && bookmarks().length > 0;
+  csvBtn.disabled = !scanReady;
+  markdownBtn.disabled = !scanReady || !proEntitled;
 }
 
 function renderState(state) {
   currentState = state;
   const count = bookmarks().length;
   countEl.textContent = count;
-  setExportEnabled(state?.status === "ready" && count > 0);
+  renderExportAvailability();
   if (!state) return;
   if (state.status === "scanning") statusEl.textContent = `Scanning safely in the background… ${count} bookmarks found. You may close this popup.`;
   if (state.status === "ready") statusEl.textContent = count ? `Scan complete: ${count} bookmarks ready to export.` : "Scan complete, but no exportable bookmarks were found.";
@@ -34,6 +51,52 @@ function renderState(state) {
 async function refreshState() {
   const response = await chrome.runtime.sendMessage({ action: "get_scan_state" });
   if (response?.ok) renderState(response.state);
+}
+
+async function installationId() {
+  const stored = await chrome.storage.local.get(INSTALLATION_STORAGE_KEY);
+  if (stored[INSTALLATION_STORAGE_KEY]) return stored[INSTALLATION_STORAGE_KEY];
+  const id = crypto.randomUUID();
+  await chrome.storage.local.set({ [INSTALLATION_STORAGE_KEY]: id });
+  return id;
+}
+
+async function savedLicense() {
+  const stored = await chrome.storage.local.get([LICENSE_STORAGE_KEY, "license_key"]);
+  return stored[LICENSE_STORAGE_KEY] || (stored.license_key ? { key: stored.license_key, email: "", instanceId: "" } : null);
+}
+
+async function licenseRequest(path, license) {
+  if (!releaseConfigured()) throw new Error("Pro licensing is not configured in this build.");
+  const response = await fetch(`${TWIMARK_LICENSE_API_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ licenseKey: license.key, email: license.email, instanceId: license.instanceId, installationId: await installationId() })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.ok) throw new Error(data.error || "License verification failed.");
+  return data;
+}
+
+async function validateSavedLicense({ quiet = false } = {}) {
+  const license = await savedLicense();
+  proEntitled = false;
+  if (!license?.key || !license?.email || !license?.instanceId) {
+    renderExportAvailability();
+    if (!quiet) setLicenseMessage("Enter your lifetime license key and checkout email to unlock NotebookLM export.");
+    return false;
+  }
+  try {
+    await licenseRequest("/validate", license);
+    proEntitled = true;
+    setLicenseMessage("Twimark Pro is active on this browser.");
+    renderExportAvailability();
+    return true;
+  } catch (error) {
+    renderExportAvailability();
+    if (!quiet) setLicenseMessage(error.message);
+    return false;
+  }
 }
 
 async function startScan(mode) {
@@ -85,6 +148,7 @@ csvBtn.addEventListener("click", async () => {
 });
 
 markdownBtn.addEventListener("click", async () => {
+  if (!await validateSavedLicense()) return;
   try {
     const filename = `Twimark_NotebookLM_${new Date().toISOString().slice(0, 10)}.md`;
     await download(filename, "text/markdown", markdown(bookmarks()));
@@ -94,8 +158,44 @@ markdownBtn.addEventListener("click", async () => {
   } catch (error) { statusEl.textContent = `Markdown download failed: ${error.message}`; }
 });
 
+activateLicenseBtn.addEventListener("click", async () => {
+  const key = licenseKeyInput.value.trim();
+  const email = licenseEmailInput.value.trim();
+  if (!key || !email) return setLicenseMessage("Enter both the license key and checkout email.");
+  activateLicenseBtn.disabled = true;
+  try {
+    const license = { key, email, instanceId: "" };
+    const data = await licenseRequest("/activate", license);
+    if (!data.instanceId) throw new Error("Activation did not return a device instance.");
+    license.instanceId = data.instanceId;
+    await chrome.storage.local.set({ [LICENSE_STORAGE_KEY]: license });
+    await validateSavedLicense();
+  } catch (error) { setLicenseMessage(error.message); }
+  finally { activateLicenseBtn.disabled = false; }
+});
+
+deactivateLicenseBtn.addEventListener("click", async () => {
+  const license = await savedLicense();
+  if (!license?.key || !license?.email || !license?.instanceId) return setLicenseMessage("There is no active Pro license on this browser.");
+  deactivateLicenseBtn.disabled = true;
+  try {
+    await licenseRequest("/deactivate", license);
+    await chrome.storage.local.remove(LICENSE_STORAGE_KEY);
+    proEntitled = false;
+    renderExportAvailability();
+    setLicenseMessage("This browser has been deactivated.");
+  } catch (error) { setLicenseMessage(error.message); }
+  finally { deactivateLicenseBtn.disabled = false; }
+});
+
 fullExportBtn.addEventListener("click", () => startScan("full_export").catch((error) => { statusEl.textContent = error.message; fullExportBtn.disabled = smartSyncBtn.disabled = false; }));
 smartSyncBtn.addEventListener("click", () => startScan("smart_sync").catch((error) => { statusEl.textContent = error.message; fullExportBtn.disabled = smartSyncBtn.disabled = false; }));
 
-refreshState();
+(async () => {
+  const license = await savedLicense();
+  if (license?.key) licenseKeyInput.value = license.key;
+  if (license?.email) licenseEmailInput.value = license.email;
+  await refreshState();
+  await validateSavedLicense({ quiet: true });
+})();
 setInterval(refreshState, 1000);

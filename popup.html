@@ -9,6 +9,7 @@
     h1 { margin: 0 0 4px; font-size: 20px; } p { margin: 6px 0 14px; color: #536471; }
     #count { font-weight: 750; color: #1d9bf0; } #status { min-height: 42px; padding: 10px; background: white; border: 1px solid #d9e2e8; border-radius: 8px; }
     .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; } button { border: 0; border-radius: 20px; padding: 10px; font-weight: 700; cursor: pointer; background: #e7eef2; color: #0f1419; } button.primary { background: #0f1419; color: white; } button.export { background: #1d9bf0; color: white; } button:disabled { opacity: .55; cursor: wait; } .wide { grid-column: span 2; }
+    #licensePanel { margin-top: 14px; padding: 12px; border: 1px solid #d9e2e8; border-radius: 8px; background: white; } #licensePanel h2 { margin: 0 0 4px; font-size: 14px; } #licensePanel p { margin: 0 0 8px; font-size: 12px; } input { box-sizing: border-box; width: 100%; margin: 4px 0; padding: 8px; border: 1px solid #b8c5cc; border-radius: 6px; } #licenseMessage { min-height: 18px; margin-top: 8px; font-size: 12px; color: #536471; }
   </style>
 </head>
 <body>
@@ -22,6 +23,15 @@
     <button id="downloadCsv" disabled>Download CSV</button>
     <button id="downloadMarkdown" class="export wide" disabled>Export Markdown & open NotebookLM</button>
   </div>
+  <section id="licensePanel">
+    <h2>NotebookLM Export is Pro</h2>
+    <p>Activate your lifetime Twimark Pro license on this browser.</p>
+    <input id="licenseKey" type="password" autocomplete="off" placeholder="Lemon Squeezy license key">
+    <input id="licenseEmail" type="email" autocomplete="email" placeholder="Checkout email address">
+    <div class="actions"><button id="activateLicense" class="primary">Activate Pro</button><button id="deactivateLicense">Deactivate device</button></div>
+    <div id="licenseMessage"></div>
+  </section>
+  <script src="license-config.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

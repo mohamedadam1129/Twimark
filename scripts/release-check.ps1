@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$requiredFiles = @('manifest.json', 'background.js', 'content.js', 'popup.html', 'popup.js', 'icon.png')
+$requiredFiles = @('manifest.json', 'background.js', 'content.js', 'popup.html', 'popup.js', 'license-config.js', 'icon.png')
 
 foreach ($file in $requiredFiles) {
   if (-not (Test-Path (Join-Path $projectRoot $file))) { throw "Missing required file: $file" }
@@ -10,10 +10,14 @@ $manifest = Get-Content (Join-Path $projectRoot 'manifest.json') -Raw | ConvertF
 if ($manifest.manifest_version -ne 3) { throw 'Manifest V3 is required.' }
 if ([version]$manifest.version -le [version]'2.3') { throw 'Release version must be greater than 2.3.' }
 if ($manifest.permissions -notcontains 'downloads') { throw 'The downloads permission is required for verified exports.' }
+if ($manifest.host_permissions -contains 'https://*.workers.dev/*') { throw 'Replace the broad workers.dev permission with the exact deployed Worker origin before release.' }
+
+$licenseConfig = Get-Content (Join-Path $projectRoot 'license-config.js') -Raw
+if ($licenseConfig -match 'TWIMARK_LICENSE_API_BASE\s*=\s*""') { throw 'Set TWIMARK_LICENSE_API_BASE to the deployed Worker URL before release.' }
 
 $node = 'C:\Users\moham\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe'
 if (Test-Path $node) {
-  foreach ($file in @('background.js', 'content.js', 'popup.js')) {
+  foreach ($file in @('background.js', 'content.js', 'popup.js', 'license-config.js', 'workers/license-gateway/src/index.js')) {
     & $node --check (Join-Path $projectRoot $file)
     if ($LASTEXITCODE -ne 0) { throw "JavaScript syntax check failed: $file" }
   }
