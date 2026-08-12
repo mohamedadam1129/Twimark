@@ -4,6 +4,9 @@ release/
 *.crx
 *.zip
 
+# Cloudflare Wrangler local state
+workers/**/.wrangler/
+
 # Local browser/editor state
 .DS_Store
 Thumbs.db
