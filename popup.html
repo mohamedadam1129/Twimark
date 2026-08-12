@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Twimark</title>
+  <style>
+    body { width: 360px; margin: 0; padding: 18px; font: 14px/1.45 system-ui, sans-serif; color: #0f1419; background: #f7f9f9; }
+    h1 { margin: 0 0 4px; font-size: 20px; } p { margin: 6px 0 14px; color: #536471; }
+    #count { font-weight: 750; color: #1d9bf0; } #status { min-height: 42px; padding: 10px; background: white; border: 1px solid #d9e2e8; border-radius: 8px; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; } button { border: 0; border-radius: 20px; padding: 10px; font-weight: 700; cursor: pointer; background: #e7eef2; color: #0f1419; } button.primary { background: #0f1419; color: white; } button.export { background: #1d9bf0; color: white; } button:disabled { opacity: .55; cursor: wait; } .wide { grid-column: span 2; }
+  </style>
+</head>
+<body>
+  <h1>Twimark</h1>
+  <p>Bookmark export for NotebookLM.</p>
+  <div id="status">Open your X bookmarks, then choose an export.</div>
+  <p><span id="count">0</span> bookmarks ready</p>
+  <div class="actions">
+    <button id="fullExport" class="primary wide">Full export</button>
+    <button id="smartSync">Smart Sync (new only)</button>
+    <button id="downloadCsv" disabled>Download CSV</button>
+    <button id="downloadMarkdown" class="export wide" disabled>Export Markdown & open NotebookLM</button>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

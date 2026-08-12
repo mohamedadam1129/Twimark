@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Twimark: Twitter Bookmark to NotebookLM AI Exporter",
+  "version": "2.4.0",
+  "description": "Export X/Twitter bookmarks to AI-ready Markdown or CSV files.",
+  "permissions": ["activeTab", "scripting", "storage", "downloads"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}

@@ -1,0 +1,9 @@
+# Build and forensic artifacts
+crx-inspection/
+release/
+*.crx
+*.zip
+
+# Local browser/editor state
+.DS_Store
+Thumbs.db
