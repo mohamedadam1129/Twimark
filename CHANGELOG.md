@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.4 - Unreleased
+
+- Refreshed the extension popup with Twimark branding, clearer export actions, accessible focus states, and a friendlier Pro purchase and activation area.
+
 ## 2.4.3 - Unreleased
 
 - Added support for X's new `/i/history` Bookmarks route while retaining the legacy Bookmarks route.
