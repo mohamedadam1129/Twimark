@@ -9,14 +9,25 @@ const licenseEmailInput = document.getElementById("licenseEmail");
 const licenseMessage = document.getElementById("licenseMessage");
 const activateLicenseBtn = document.getElementById("activateLicense");
 const deactivateLicenseBtn = document.getElementById("deactivateLicense");
+const buyProBtn = document.getElementById("buyPro");
 
 const LICENSE_STORAGE_KEY = "pro_license_v1";
 const INSTALLATION_STORAGE_KEY = "installation_id_v1";
 let currentState = null;
 let proEntitled = false;
 
-function isBookmarksPage(url) {
-  return /(^https:\/\/)(x\.com|twitter\.com)\/i\/bookmarks/.test(url || "");
+function isBookmarkHistoryPage(url) {
+  try {
+    const parsed = new URL(url);
+    if (!/^(x\.com|twitter\.com)$/.test(parsed.hostname)) return false;
+    if (parsed.pathname === "/i/bookmarks") return true;
+    if (parsed.pathname === "/i/history" || parsed.pathname === "/i/history/") return true;
+    // X History contains non-bookmark tabs. Do not accidentally export Likes,
+    // Videos, or Articles as if they were user-saved bookmarks.
+    return /^\/i\/history\/bookmarks(?:\/|$)/.test(parsed.pathname);
+  } catch {
+    return false;
+  }
 }
 
 function bookmarks() {
@@ -101,8 +112,8 @@ async function validateSavedLicense({ quiet = false } = {}) {
 
 async function startScan(mode) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!isBookmarksPage(tab?.url)) {
-    statusEl.textContent = "Open your X bookmarks page first.";
+  if (!isBookmarkHistoryPage(tab?.url)) {
+    statusEl.textContent = "Open X History and select the Bookmarks tab first.";
     return;
   }
   fullExportBtn.disabled = smartSyncBtn.disabled = true;
@@ -186,6 +197,12 @@ deactivateLicenseBtn.addEventListener("click", async () => {
     setLicenseMessage("This browser has been deactivated.");
   } catch (error) { setLicenseMessage(error.message); }
   finally { deactivateLicenseBtn.disabled = false; }
+});
+
+buyProBtn.addEventListener("click", () => {
+  chrome.tabs.create({
+    url: "https://twimark.lemonsqueezy.com/checkout/buy/376668c1-9221-4df9-8345-50977db97019"
+  });
 });
 
 fullExportBtn.addEventListener("click", () => startScan("full_export").catch((error) => { statusEl.textContent = error.message; fullExportBtn.disabled = smartSyncBtn.disabled = false; }));

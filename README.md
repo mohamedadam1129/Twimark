@@ -9,7 +9,7 @@ This repository continues the GPLv3 licensing included in the supplied extension
 1. Open `chrome://extensions` in Chrome.
 2. Enable **Developer mode**.
 3. Choose **Load unpacked** and select this repository folder.
-4. Open `https://x.com/i/bookmarks`, then click the Twimark toolbar icon.
+4. Open `https://x.com/i/history` and select the **Bookmarks** tab, then click the Twimark toolbar icon. The legacy `/i/bookmarks` route remains supported.
 
 The extension uses `activeTab` to inject the scanner only after the user opens the popup on their X bookmarks page. Scan data is stored in `chrome.storage.local`, so closing the popup does not discard an active scan.
 

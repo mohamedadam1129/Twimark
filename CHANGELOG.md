@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.3 - Unreleased
+
+- Added support for X's new `/i/history` Bookmarks route while retaining the legacy Bookmarks route.
+- Prevented scans from running on X History's Likes, Videos, and Articles tabs.
+- Added an in-extension Twimark Pro purchase button linked to Lemon Squeezy checkout.
+
 ## 2.4.2 - Unreleased
 
 - Fixed repeat scans in the same X tab returning an empty export.
