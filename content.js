@@ -106,6 +106,9 @@
       sendResponse({ ok: false, error: "A scan is already running." });
       return;
     }
+    // The script remains installed in the X tab after a scan. A fresh scan
+    // must not inherit the previous run's deduplication set.
+    seenIds.clear();
     running = true;
     scan();
     sendResponse({ ok: true });

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.2 - Unreleased
+
+- Fixed repeat scans in the same X tab returning an empty export.
+- Expanded license endpoint CORS support to valid Chrome extension origins, fixing activation errors for legitimate extension installations with a different ID.
+
 ## 2.4.1 - Unreleased
 
 - Added server-validated lifetime-license activation for NotebookLM export.

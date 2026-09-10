@@ -2,7 +2,13 @@ const LEMON_API = "https://api.lemonsqueezy.com/v1/licenses";
 
 function corsHeaders(request, env) {
   const origin = request.headers.get("Origin");
-  if (origin !== env.ALLOWED_ORIGIN) return null;
+  // Chrome Web Store keeps an extension ID stable, but unpacked, enterprise,
+  // and previously packaged builds can have a different ID. The Worker never
+  // grants access based on origin: Lemon Squeezy product/email/instance checks
+  // below remain the entitlement boundary. Restricting this endpoint to Chrome
+  // extension origins prevents ordinary websites from using it.
+  const isChromeExtension = /^chrome-extension:\/\/[a-p]{32}$/.test(origin || "");
+  if (origin !== env.ALLOWED_ORIGIN && !isChromeExtension) return null;
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
