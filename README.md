@@ -25,6 +25,14 @@ Before building v2.4.1:
 
 `scripts/release-check.ps1` deliberately fails until steps 2–3 are complete.
 
+### Lemon Squeezy purchase handoff
+
+For one-click activation after payment, set the Twimark Pro product's **Confirmation modal button link** and **receipt button link** in Lemon Squeezy to:
+
+`https://twimark-license-gateway.twimarkworker.workers.dev/activate?license_key=[license_key]&email=[email]`
+
+Lemon Squeezy replaces both variables after a successful purchase. The handoff page sends the key only to the installed Twimark extension, which validates the product, purchaser email, and device activation with the license gateway before storing entitlement locally.
+
 ## Release checks
 
 Run `scripts/release-check.ps1`, then run `scripts/package.ps1`. The resulting ZIP is the file to upload to the existing Chrome Web Store item.

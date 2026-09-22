@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.5.0 - Unreleased
+
+- Rebuilt the popup around one primary NotebookLM export action.
+- Added a five-bookmark free Markdown sample with Twimark attribution and post-export onboarding.
+- Moved license controls into a compact modal and added a Pro outcome-focused upgrade modal.
+- Added Lemon Squeezy purchase handoff support for automatic in-extension activation after checkout.
+- Added automatic incremental sync for returning Pro customers.
+
 ## 2.4.4 - Unreleased
 
 - Refreshed the extension popup with Twimark branding, clearer export actions, accessible focus states, and a friendlier Pro purchase and activation area.

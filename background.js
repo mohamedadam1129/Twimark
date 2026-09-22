@@ -1,5 +1,37 @@
 const SCAN_KEY = "scan_state_v2";
 const EXPORTED_IDS_KEY = "exported_tweet_ids_v2";
+const PRO_LICENSE_KEY = "pro_license_v1";
+const INSTALLATION_STORAGE_KEY = "installation_id_v1";
+const LICENSE_API_BASE = "https://twimark-license-gateway.twimarkworker.workers.dev";
+
+async function installationId() {
+  const result = await chrome.storage.local.get(INSTALLATION_STORAGE_KEY);
+  if (result[INSTALLATION_STORAGE_KEY]) return result[INSTALLATION_STORAGE_KEY];
+  const id = crypto.randomUUID();
+  await chrome.storage.local.set({ [INSTALLATION_STORAGE_KEY]: id });
+  return id;
+}
+
+async function activatePurchasedLicense(licenseKey, email) {
+  if (typeof licenseKey !== "string" || typeof email !== "string" || !licenseKey.trim() || !email.trim()) {
+    return { ok: false, error: "The purchase link is missing a license key or email." };
+  }
+  const response = await fetch(`${LICENSE_API_BASE}/activate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      licenseKey: licenseKey.trim(),
+      email: email.trim(),
+      installationId: await installationId()
+    })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.ok || !data.instanceId) {
+    return { ok: false, error: data.error || "Could not activate this purchase." };
+  }
+  await chrome.storage.local.set({ [PRO_LICENSE_KEY]: { key: licenseKey.trim(), email: email.trim(), instanceId: data.instanceId } });
+  return { ok: true };
+}
 
 function emptyScan(mode) {
   return {
@@ -92,5 +124,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.error("Twimark background error", error);
     sendResponse({ ok: false, error: error.message });
   });
+  return true;
+});
+
+chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
+  if (request?.action !== "activate_purchase" || !sender.url?.startsWith(`${LICENSE_API_BASE}/activate`)) {
+    sendResponse({ ok: false, error: "Untrusted activation request." });
+    return;
+  }
+  activatePurchasedLicense(request.licenseKey, request.email)
+    .then(sendResponse)
+    .catch((error) => sendResponse({ ok: false, error: error.message }));
   return true;
 });
