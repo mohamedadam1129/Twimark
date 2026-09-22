@@ -15,6 +15,7 @@ let currentState = null;
 let proEntitled = false;
 let pendingExport = false;
 let exporting = false;
+let pendingDownload = null;
 
 function isBookmarkHistoryPage(url) {
   try {
@@ -28,7 +29,7 @@ function bookmarks() { return Object.values(currentState?.bookmarks || {}); }
 function releaseConfigured() { return typeof TWIMARK_LICENSE_API_BASE === "string" && /^https:\/\//.test(TWIMARK_LICENSE_API_BASE); }
 function setLicenseMessage(message) { licenseMessage.textContent = message; }
 function setModal(id, open) { document.getElementById(id).hidden = !open; }
-function openUpgrade() { setModal("successModal", false); setModal("upgradeModal", true); }
+function openUpgrade() { setModal("transformModal", false); setModal("upgradeModal", true); }
 
 function renderState(state) {
   currentState = state;
@@ -130,13 +131,37 @@ async function downloadMarkdown(bookmarkList) {
 
 async function recordExport(ids) { await chrome.runtime.sendMessage({ action: "mark_exported", ids }); }
 
-function showSuccess(exportedCount, totalCount, isPro) {
-  document.getElementById("successTitle").textContent = isPro ? `Exported all ${exportedCount} bookmarks! 🎉` : `Exported ${exportedCount} bookmarks to Markdown! 🎉`;
-  document.getElementById("successCopy").textContent = "Your Markdown file has downloaded. Add it to NotebookLM to create an Audio Overview, study notes, or a searchable second brain.";
-  const remaining = Math.max(0, totalCount - exportedCount);
-  document.getElementById("vaultHook").textContent = remaining ? `Want the rest? You have ${remaining} bookmarks left in your vault.` : "Your full bookmark vault is now ready for NotebookLM.";
-  document.getElementById("successUpgrade").hidden = isPro;
-  setModal("successModal", true);
+function displayDate(date) {
+  const parsed = date ? new Date(date) : null;
+  return parsed && !Number.isNaN(parsed.getTime()) ? new Intl.DateTimeFormat("en", { month: "short", year: "numeric" }).format(parsed) : "X History";
+}
+
+function previewMarkdown(tweet) {
+  const clean = (tweet.text || "Image/video-only bookmark.").replace(/\s+/g, " ").trim();
+  const phrases = clean.split(/(?<=[.!?])\s+|\s*•\s*/).filter(Boolean);
+  const headline = (phrases[0] || clean).replace(/^[-•]\s*/, "").slice(0, 62);
+  const bullets = phrases.slice(1, 3).map((phrase) => `- ${phrase.slice(0, 54)}`);
+  return `**${headline}${headline.length === 62 ? "…" : ""}**\n\n${bullets.length ? bullets.join("\n") : clean.slice(0, 108)}\n\n_Source: X • ${displayDate(tweet.date)}_`;
+}
+
+function showTransform(selection, isPro) {
+  const tweet = selection[0];
+  const avatar = document.getElementById("tweetAvatar");
+  avatar.replaceChildren();
+  if (tweet.avatar) {
+    const image = document.createElement("img");
+    image.src = tweet.avatar;
+    image.alt = "";
+    avatar.append(image);
+  } else {
+    avatar.textContent = (tweet.user || "X").slice(0, 1).toUpperCase();
+  }
+  document.getElementById("tweetName").textContent = tweet.user || "Your saved post";
+  document.getElementById("tweetMeta").textContent = `${tweet.handle || "@unknown"} · ${displayDate(tweet.date)}`;
+  document.getElementById("tweetText").textContent = tweet.text || "Image/video-only bookmark.";
+  document.getElementById("markdownPreview").textContent = previewMarkdown(tweet);
+  document.getElementById("transformFooter").textContent = isPro ? "Full Markdown • Ready for NotebookLM" : `5 free bookmarks • ${Math.max(0, bookmarks().length - selection.length)} more in your vault`;
+  setModal("transformModal", true);
 }
 
 async function exportBookmarks() {
@@ -148,10 +173,9 @@ async function exportBookmarks() {
     const isPro = await validateSavedLicense({ quiet: true });
     const all = bookmarks();
     const selection = isPro ? all : all.slice(0, FREE_EXPORT_LIMIT);
-    await downloadMarkdown(selection);
-    if (isPro) await recordExport(selection.map((tweet) => tweet.id));
-    showSuccess(selection.length, all.length, isPro);
-    statusEl.textContent = isPro ? "Your full library export has downloaded." : "Your free Markdown sample has downloaded.";
+    pendingDownload = { selection, isPro };
+    showTransform(selection, isPro);
+    statusEl.textContent = "Preview ready. Continue when you’re ready to send it to NotebookLM.";
   } catch (error) {
     statusEl.textContent = `Export failed: ${error.message}`;
   } finally {
@@ -182,9 +206,22 @@ exportBtn.addEventListener("click", async () => {
 
 document.getElementById("openLicense").addEventListener("click", () => setModal("licenseModal", true));
 document.getElementById("openUpgrade").addEventListener("click", openUpgrade);
-document.getElementById("successUpgrade").addEventListener("click", openUpgrade);
 document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => setModal(button.dataset.close, false)));
-document.getElementById("notebookLink").addEventListener("click", (event) => { event.preventDefault(); chrome.tabs.create({ url: event.currentTarget.href }); });
+document.getElementById("continueNotebook").addEventListener("click", async () => {
+  if (!pendingDownload) return;
+  const button = document.getElementById("continueNotebook");
+  button.disabled = true;
+  try {
+    await downloadMarkdown(pendingDownload.selection);
+    if (pendingDownload.isPro) await recordExport(pendingDownload.selection.map((tweet) => tweet.id));
+    await chrome.tabs.create({ url: "https://notebooklm.google.com/?utm_source=twimark" });
+    statusEl.textContent = "Markdown download started. NotebookLM is open in a new tab.";
+    setModal("transformModal", false);
+    pendingDownload = null;
+  } catch (error) {
+    statusEl.textContent = `Export failed: ${error.message}`;
+  } finally { button.disabled = false; }
+});
 
 activateLicenseBtn.addEventListener("click", async () => {
   const key = licenseKeyInput.value.trim(); const email = licenseEmailInput.value.trim();

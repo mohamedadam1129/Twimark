@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.5.1 - Unreleased
+
+- Added a compact Before → After Markdown preview before an export begins.
+- Moved the actual Markdown download and NotebookLM handoff to one explicit CTA after the preview.
+
 ## 2.5.0 - Unreleased
 
 - Rebuilt the popup around one primary NotebookLM export action.

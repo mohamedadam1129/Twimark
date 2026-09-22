@@ -35,6 +35,7 @@
 
     const userEl = article.querySelector('[data-testid="User-Name"]');
     const lines = userEl?.innerText?.split("\n") || [];
+    const avatar = userEl?.querySelector("img")?.currentSrc || userEl?.querySelector("img")?.src || "";
     const text = article.querySelector('[data-testid="tweetText"]')?.innerText?.trim() || "";
     const media = mediaUrls(article);
     if (!text && media.length === 0) return null;
@@ -44,6 +45,7 @@
       ...status,
       user: lines[0] || "Unknown User",
       handle: lines.find((line) => line.startsWith("@")) || "@unknown",
+      avatar,
       date: article.querySelector("time")?.getAttribute("datetime") || null,
       text,
       media
