@@ -45,6 +45,7 @@ function renderState(state) {
     exportBtn.textContent = "Export to NotebookLM";
   }
   if (state.status === "ready") statusEl.textContent = count ? `${count} bookmarks are ready. Your first ${Math.min(FREE_EXPORT_LIMIT, count)} are free.` : "No exportable bookmarks were found. Make sure you selected X History’s Bookmarks tab.";
+  if (state.threadStitching?.status === "stitching") statusEl.textContent = `Smart Thread Stitching… ${state.threadStitching.completed} of ${state.threadStitching.total} conversations checked.`;
   if (state.status === "error") statusEl.textContent = `Scan failed: ${state.error || "Unknown error"}`;
 }
 
@@ -114,11 +115,23 @@ async function startScan(mode) {
 }
 
 function markdown(bookmarkList) {
-  const sections = bookmarkList.map((tweet) => {
+  const emittedThreads = new Set();
+  const sections = bookmarkList.flatMap((tweet) => {
+    const thread = Array.isArray(tweet.thread) && tweet.thread.length > 1 ? tweet.thread : null;
+    const threadKey = tweet.threadRootId || tweet.id;
+    if (emittedThreads.has(threadKey)) return [];
+    emittedThreads.add(threadKey);
+    if (thread) {
+      const parts = thread.map((post, index) => {
+        const media = post.media?.length ? `\n\n**Media:**\n${post.media.map((url) => `- ${url}`).join("\n")}` : "";
+        return `### Post ${index + 1}\n\n${post.text || "Image/video-only post."}${media}\n\n**Source:** ${post.url}`;
+      });
+      return `## Thread by ${tweet.user} (${tweet.handle})\n\n${parts.join("\n\n")}`;
+    }
     const date = tweet.date || "No date";
     const text = tweet.text || "Image/video-only bookmark.";
     const media = tweet.media?.length ? `\n\n**Media:**\n${tweet.media.map((url) => `- ${url}`).join("\n")}` : "";
-    return `## Tweet by ${tweet.user} (${tweet.handle}) — ${date}\n\n**Tweet text:**\n${text}\n\n**Source:** ${tweet.url}${media}`;
+    return [`## Tweet by ${tweet.user} (${tweet.handle}) — ${date}\n\n**Tweet text:**\n${text}\n\n**Source:** ${tweet.url}${media}`];
   });
   return `# Twitter Bookmark Archive\n\nExported by Twimark on ${new Date().toISOString()}\n\n---\n\n${sections.join("\n\n---\n\n")}\n\n---\n\n*Exported via [Twimark](https://twimark.lemonsqueezy.com/) — Convert X bookmarks & threads into Second Brain sources.*\n`;
 }
@@ -171,7 +184,15 @@ async function exportBookmarks() {
   exportBtn.textContent = "Preparing your export…";
   try {
     const isPro = await validateSavedLicense({ quiet: true });
-    const all = bookmarks();
+    let all = bookmarks();
+    if (isPro) {
+      exportBtn.textContent = "Stitching thread context…";
+      statusEl.textContent = "Smart Thread Stitching is checking related posts from the same author.";
+      const stitched = await chrome.runtime.sendMessage({ action: "stitch_threads" });
+      if (!stitched?.ok) throw new Error(stitched?.error || "Thread stitching could not start.");
+      await refreshState();
+      all = bookmarks();
+    }
     const selection = isPro ? all : all.slice(0, FREE_EXPORT_LIMIT);
     pendingDownload = { selection, isPro };
     showTransform(selection, isPro);

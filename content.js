@@ -29,9 +29,9 @@
     return [...urls];
   }
 
-  function scrape(article) {
+  function scrape(article, deduplicate = true) {
     const status = canonicalStatus(article);
-    if (!status || seenIds.has(status.id)) return null;
+    if (!status || (deduplicate && seenIds.has(status.id))) return null;
 
     const userEl = article.querySelector('[data-testid="User-Name"]');
     const lines = userEl?.innerText?.split("\n") || [];
@@ -40,7 +40,7 @@
     const media = mediaUrls(article);
     if (!text && media.length === 0) return null;
 
-    seenIds.add(status.id);
+    if (deduplicate) seenIds.add(status.id);
     return {
       ...status,
       user: lines[0] || "Unknown User",
@@ -102,7 +102,34 @@
     }
   }
 
+  async function extractThread(targetId) {
+    // Conversation pages are rendered client-side. Give X a short moment to
+    // populate the surrounding posts after the tab reports completion.
+    await sleep(900);
+    const articles = [...document.querySelectorAll('article[data-testid="tweet"]')];
+    const targetArticle = articles.find((article) => canonicalStatus(article)?.id === targetId);
+    const target = targetArticle ? scrape(targetArticle, false) : null;
+    if (!target) return { ok: false, error: "Could not locate the bookmarked post in this conversation." };
+
+    const postsById = new Map();
+    for (const article of articles) {
+      const post = scrape(article, false);
+      // Conversation timelines include other people's replies. A thread is
+      // composed only of posts from the bookmarked post's author.
+      if (post?.handle === target.handle) postsById.set(post.id, post);
+    }
+    const posts = [...postsById.values()].sort((a, b) => {
+      try { return BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0; }
+      catch { return 0; }
+    });
+    return { ok: true, posts };
+  }
+
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "extract_thread") {
+      extractThread(request.targetId).then(sendResponse).catch((error) => sendResponse({ ok: false, error: error.message }));
+      return true;
+    }
     if (request.action !== "start_scan") return;
     if (running) {
       sendResponse({ ok: false, error: "A scan is already running." });

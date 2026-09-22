@@ -3,6 +3,67 @@ const EXPORTED_IDS_KEY = "exported_tweet_ids_v2";
 const PRO_LICENSE_KEY = "pro_license_v1";
 const INSTALLATION_STORAGE_KEY = "installation_id_v1";
 const LICENSE_API_BASE = "https://twimark-license-gateway.twimarkworker.workers.dev";
+const THREAD_STITCH_DELAY_MS = 450;
+const THREAD_TAB_TIMEOUT_MS = 15000;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitForTabComplete(tabId) {
+  const current = await chrome.tabs.get(tabId).catch(() => null);
+  if (current?.status === "complete") return;
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => { cleanup(); reject(new Error("X conversation page timed out.")); }, THREAD_TAB_TIMEOUT_MS);
+    const listener = (updatedTabId, changeInfo) => {
+      if (updatedTabId === tabId && changeInfo.status === "complete") { cleanup(); resolve(); }
+    };
+    const cleanup = () => { clearTimeout(timeout); chrome.tabs.onUpdated.removeListener(listener); };
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
+async function extractThreadForBookmark(bookmark) {
+  let tab;
+  try {
+    tab = await chrome.tabs.create({ url: bookmark.url, active: false });
+    await waitForTabComplete(tab.id);
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+    const result = await chrome.tabs.sendMessage(tab.id, { action: "extract_thread", targetId: bookmark.id });
+    return result?.ok ? result.posts || [] : [];
+  } finally {
+    if (tab?.id) await chrome.tabs.remove(tab.id).catch(() => {});
+  }
+}
+
+async function stitchThreads() {
+  const scan = await getScanState();
+  if (!scan || scan.status !== "ready") return { ok: false, error: "Complete a bookmark scan before stitching threads." };
+  if (scan.threadStitching?.status === "stitching") return { ok: false, error: "Thread stitching is already running." };
+
+  const bookmarks = Object.values(scan.bookmarks).filter((bookmark) => !bookmark.threadStitchingAttempted);
+  if (!bookmarks.length) return { ok: true, stitched: scan.threadStitching?.stitched || 0, total: 0 };
+  scan.threadStitching = { status: "stitching", total: bookmarks.length, completed: 0, stitched: 0 };
+  await setScanState(scan);
+
+  for (const bookmark of bookmarks) {
+    try {
+      const posts = await extractThreadForBookmark(bookmark);
+      if (posts.length > 1) {
+        scan.bookmarks[bookmark.id].thread = posts;
+        scan.bookmarks[bookmark.id].threadRootId = posts[0].id;
+        scan.threadStitching.stitched += 1;
+      }
+    } catch (error) {
+      console.warn("Twimark could not stitch thread", bookmark.id, error);
+    }
+    scan.bookmarks[bookmark.id].threadStitchingAttempted = true;
+    scan.threadStitching.completed += 1;
+    await setScanState(scan);
+    await sleep(THREAD_STITCH_DELAY_MS);
+  }
+  scan.threadStitching.status = "ready";
+  await setScanState(scan);
+  return { ok: true, stitched: scan.threadStitching.stitched, total: bookmarks.length };
+}
 
 async function installationId() {
   const result = await chrome.storage.local.get(INSTALLATION_STORAGE_KEY);
@@ -116,6 +177,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         break;
       case "mark_exported":
         sendResponse(await markExported(request.ids || []));
+        break;
+      case "stitch_threads":
+        sendResponse(await stitchThreads());
         break;
       default:
         sendResponse({ ok: false, error: "Unknown action." });

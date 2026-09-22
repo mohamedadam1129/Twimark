@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.0 - Unreleased
+
+- Added Pro Smart Thread Stitching: extracts same-author conversation posts from X and exports them as one Markdown thread.
+
 ## 2.5.1 - Unreleased
 
 - Added a compact Before → After Markdown preview before an export begins.
