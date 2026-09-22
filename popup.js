@@ -8,6 +8,9 @@ const activateLicenseBtn = document.getElementById("activateLicense");
 const deactivateLicenseBtn = document.getElementById("deactivateLicense");
 const buyProBtn = document.getElementById("buyPro");
 const authStateEl = document.getElementById("authState");
+const openLicenseBtn = document.getElementById("openLicense");
+const LOGIN_BUTTON_LABEL = "Already have a license?<br>Log in";
+const LOGIN_BUTTON_LOGGED_IN_LABEL = "Logged in ✓";
 const LICENSE_STORAGE_KEY = "pro_license_v1";
 const INSTALLATION_STORAGE_KEY = "installation_id_v1";
 const CHECKOUT_URL = "https://twimark.lemonsqueezy.com/checkout/buy/376668c1-9221-4df9-8345-50977db97019";
@@ -33,6 +36,16 @@ function setModal(id, open) { document.getElementById(id).hidden = !open; }
 function openUpgrade() { setModal("transformModal", false); setModal("upgradeModal", true); }
 
 function updateAuthUi(loggedIn, message = "") {
+  if (openLicenseBtn) {
+    openLicenseBtn.classList.toggle("logged-in", loggedIn);
+    if (loggedIn) {
+      openLicenseBtn.innerHTML = LOGIN_BUTTON_LOGGED_IN_LABEL;
+      openLicenseBtn.title = "Twimark Pro is active on this browser";
+    } else {
+      openLicenseBtn.innerHTML = LOGIN_BUTTON_LABEL;
+      openLicenseBtn.title = "";
+    }
+  }
   if (!authStateEl) return;
   authStateEl.hidden = !loggedIn;
   authStateEl.textContent = loggedIn ? "Logged in" : message;
@@ -94,7 +107,7 @@ async function validateSavedLicense({ quiet = false } = {}) {
   const license = await savedLicense();
   proEntitled = false;
   if (!license?.key || !license?.email || !license?.instanceId) {
-    if (!quiet) setLicenseMessage("Enter the license key and email from your receipt.");
+    if (!quiet) { setLicenseMessage("Enter the license key and email from your receipt."); updateAuthUi(false); }
     return false;
   }
   try {
@@ -106,7 +119,7 @@ async function validateSavedLicense({ quiet = false } = {}) {
     }
     return true;
   } catch (error) {
-    if (!quiet) setLicenseMessage(error.message);
+    if (!quiet) { setLicenseMessage(error.message); updateAuthUi(false); }
     return false;
   }
 }
