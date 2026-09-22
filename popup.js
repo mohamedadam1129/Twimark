@@ -7,6 +7,7 @@ const licenseMessage = document.getElementById("licenseMessage");
 const activateLicenseBtn = document.getElementById("activateLicense");
 const deactivateLicenseBtn = document.getElementById("deactivateLicense");
 const buyProBtn = document.getElementById("buyPro");
+const authStateEl = document.getElementById("authState");
 const LICENSE_STORAGE_KEY = "pro_license_v1";
 const INSTALLATION_STORAGE_KEY = "installation_id_v1";
 const CHECKOUT_URL = "https://twimark.lemonsqueezy.com/checkout/buy/376668c1-9221-4df9-8345-50977db97019";
@@ -30,6 +31,12 @@ function releaseConfigured() { return typeof TWIMARK_LICENSE_API_BASE === "strin
 function setLicenseMessage(message) { licenseMessage.textContent = message; }
 function setModal(id, open) { document.getElementById(id).hidden = !open; }
 function openUpgrade() { setModal("transformModal", false); setModal("upgradeModal", true); }
+
+function updateAuthUi(loggedIn, message = "") {
+  if (!authStateEl) return;
+  authStateEl.hidden = !loggedIn;
+  authStateEl.textContent = loggedIn ? "Logged in" : message;
+}
 
 function renderState(state) {
   currentState = state;
@@ -93,7 +100,10 @@ async function validateSavedLicense({ quiet = false } = {}) {
   try {
     await licenseRequest("/validate", license);
     proEntitled = true;
-    if (!quiet) setLicenseMessage("Twimark Pro is active on this browser.");
+    if (!quiet) {
+      setLicenseMessage("Twimark Pro is active on this browser.");
+      updateAuthUi(true, "Logged in");
+    }
     return true;
   } catch (error) {
     if (!quiet) setLicenseMessage(error.message);
@@ -254,7 +264,9 @@ activateLicenseBtn.addEventListener("click", async () => {
     if (!data.instanceId) throw new Error("Activation did not return a device instance.");
     license.instanceId = data.instanceId;
     await chrome.storage.local.set({ [LICENSE_STORAGE_KEY]: license });
-    await validateSavedLicense();
+    const isValid = await validateSavedLicense();
+    if (!isValid) throw new Error("License was activated but could not be verified. Please try again.");
+    updateAuthUi(true, "Logged in");
     setTimeout(() => setModal("licenseModal", false), 650);
   } catch (error) { setLicenseMessage(error.message); } finally { activateLicenseBtn.disabled = false; }
 });
@@ -263,7 +275,7 @@ deactivateLicenseBtn.addEventListener("click", async () => {
   const license = await savedLicense();
   if (!license?.key || !license?.email || !license?.instanceId) return setLicenseMessage("There is no active Pro license on this browser.");
   deactivateLicenseBtn.disabled = true;
-  try { await licenseRequest("/deactivate", license); await chrome.storage.local.remove(LICENSE_STORAGE_KEY); proEntitled = false; setLicenseMessage("This browser has been deactivated."); }
+  try { await licenseRequest("/deactivate", license); await chrome.storage.local.remove(LICENSE_STORAGE_KEY); proEntitled = false; updateAuthUi(false); setLicenseMessage("This browser has been deactivated."); }
   catch (error) { setLicenseMessage(error.message); } finally { deactivateLicenseBtn.disabled = false; }
 });
 
@@ -275,6 +287,7 @@ document.getElementById("upgradeBuy").addEventListener("click", openCheckout);
   if (license?.key) licenseKeyInput.value = license.key;
   if (license?.email) licenseEmailInput.value = license.email;
   await refreshState();
-  await validateSavedLicense({ quiet: true });
+  const loggedIn = await validateSavedLicense({ quiet: true });
+  updateAuthUi(loggedIn);
 })();
 setInterval(refreshState, 1000);
