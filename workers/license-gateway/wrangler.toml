@@ -1,10 +1,46 @@
+# Twimark Pro entitlement gateway (Cloudflare Workers + D1).
 name = "twimark-license-gateway"
 main = "src/index.js"
 compatibility_date = "2026-08-12"
+compatibility_flags = ["nodejs_compat"]
 
-# Production Chrome Web Store extension origin.
-# LEMON_PRODUCT_ID is deliberately public; it is an allow-list, not a secret.
+# ---------------------------------------------------------------------------
+# Lemon Squeezy product allow-list (public, not secrets).
+# LS_VARIANT_* values are the variant ids of each pricing tier:
+#   LS_VARIANT_MONTHLY_ID   → monthly Pro subscription
+#   LS_VARIANT_ANNUAL_ID    → annual Pro subscription
+#   LS_VARIANT_LIFETIME_ID  → one-time lifetime Pro purchase
+# LS_PRODUCT_ID is the shared product id, allow-listed on EVERY webhook.
 [vars]
+LS_PRODUCT_ID = "904561"
+# LS_VARIANT_MONTHLY_ID = "123456"
+# LS_VARIANT_ANNUAL_ID  = "123457"
+# LS_VARIANT_LIFETIME_ID = "123458"
+
+# Template checkout URLs for the three tiers (used by the /upgrade pricing page).
+# Set them in the Lemon Squeezy store admin under Products → Pro →
+# "Direct link template checkout". Leave blank to hide the corresponding card.
+# LS_CHECKOUT_MONTHLY_URL = "https://twimark.lemonsqueezy.com/checkout/buy/…?template=MONTHLY"
+# LS_CHECKOUT_ANNUAL_URL  = "https://twimark.lemonsqueezy.com/checkout/buy/…?template=ANNUAL"
+# LS_CHECKOUT_LIFETIME_URL = "https://twimark.lemonsqueezy.com/checkout/buy/…?template=LIFETIME"
+LS_STORE_URL = "https://twimark.lemonsqueezy.com/"
+
+# Origin the extension is allowed to call from (plus dev builds).
 LEMON_PRODUCT_ID = "904561"
 ALLOWED_ORIGIN = "chrome-extension://cnhlcmnabmfahcddbgfacjidkebamdbe"
 EXTENSION_ID = "cnhlcmnabmfahcddbgfacjidkebamdbe"
+
+# Populated by `wrangler d1 create twimark-entitlements` (copy the database_id).
+# Then apply the schema once: `wrangler d1 execute twimark-entitlements --remote --file=./workers/schema.sql`
+[[d1_databases]]
+binding = "DB"
+database_name = "twimark-entitlements"
+database_id = "xxxxx-replace-me-xxxxx"
+
+# Durable Objects remain DISABLED. Lemon Squeezy's rate limits are generous
+# enough that we rely on webhook idempotency + the per-isolate token bucket in
+# src/index.js. If we ever need a hard relay limit, revisit.
+
+# Populated by `wrangler secret put LS_WEBHOOK_SECRET` (Lemon Squeezy "Signing
+# secret", Settings → Webhooks). It is NOT a wrangler var, it's a secret:
+#   wrangler secret put LS_WEBHOOK_SECRET
