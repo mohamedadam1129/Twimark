@@ -142,10 +142,10 @@ function corsHeadersFor(request, env) {
   return null;
 }
 
-function withCors(request, env, makeBody) {
+async function withCors(request, env, makeBody) {
   const headers = corsHeadersFor(request, env);
   if (!headers) return errorJson("Origin not allowed.", 403);
-  const response = makeBody();
+  const response = await makeBody();
   for (const [key, value] of Object.entries(headers)) response.headers.set(key, value);
   return response;
 }
@@ -181,12 +181,35 @@ async function readDeviceRow(db, installationId) {
   };
 }
 
+function mapDeviceRow(row) {
+  if (!row) return null;
+  return {
+    installationId: row.installation_id,
+    email: row.user_email,
+    proTier: row.pro_tier,
+    expiresAtMs: row.expires_at_ms == null ? null : Number(row.expires_at_ms),
+    subscriptionStatus: row.subscription_status || null,
+    subscriptionId: row.subscription_id || null,
+    renewsAt: row.renews_at || null,
+    endsAt: row.ends_at || null,
+    pauseMode: row.pause_mode || null,
+    pauseResumesAt: row.pause_resumes_at || null,
+    pauseStartedAtMs: row.pause_started_at_ms == null ? null : Number(row.pause_started_at_ms),
+    graceUntilMs: row.grace_until_ms == null ? null : Number(row.grace_until_ms),
+    lemonRef: row.lemon_ref || null,
+    variantId: row.variant_id || null,
+    customerPortalUrl: row.customer_portal_url || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 async function readDeviceRowsByEmail(db, email) {
   const result = await db
     .prepare("SELECT * FROM device_entitlements WHERE user_email = ? ORDER BY updated_at DESC")
     .bind(email)
     .all();
-  return (result.results || []).filter(Boolean);
+  return (result.results || []).map(mapDeviceRow).filter(Boolean);
 }
 
 async function readUnclaimedByRef(db, lemonRef) {
@@ -206,6 +229,7 @@ async function readUnclaimedByRef(db, lemonRef) {
     pauseMode: row.pause_mode || null,
     pauseResumesAt: row.pause_resumes_at || null,
     graceUntilMs: row.grace_until_ms == null ? null : Number(row.grace_until_ms),
+    customerPortalUrl: row.customer_portal_url || null,
     status: row.status || null,
     claimedBy: row.claimed_by || null,
     createdAt: row.created_at,
@@ -229,6 +253,7 @@ async function readUnclaimedByEmail(db, email) {
     pauseMode: row.pause_mode || null,
     pauseResumesAt: row.pause_resumes_at || null,
     graceUntilMs: row.grace_until_ms == null ? null : Number(row.grace_until_ms),
+    customerPortalUrl: row.customer_portal_url || null,
     status: row.status || null,
     claimedBy: row.claimedBy || row.claimed_by || null,
     createdAt: row.created_at,
@@ -242,8 +267,8 @@ async function upsertUnclaimedOrders(db, entry) {
     .prepare(
       `INSERT INTO unclaimed_orders (
          lemon_ref, user_email, pro_tier, variant_id, subscription_id, renews_at, ends_at,
-         pause_mode, pause_resumes_at, grace_until_ms, status, claimed_by, created_at, updated_at
-       ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+         pause_mode, pause_resumes_at, grace_until_ms, customer_portal_url, status, claimed_by, created_at, updated_at
+       ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
        ON CONFLICT(lemon_ref) DO UPDATE SET
          user_email = excluded.user_email,
          pro_tier = excluded.pro_tier,
@@ -254,6 +279,7 @@ async function upsertUnclaimedOrders(db, entry) {
          pause_mode = excluded.pause_mode,
          pause_resumes_at = excluded.pause_resumes_at,
          grace_until_ms = excluded.grace_until_ms,
+         customer_portal_url = COALESCE(excluded.customer_portal_url, customer_portal_url),
          status = excluded.status,
          claimed_by = COALESCE(excluded.claimed_by, claimed_by),
          updated_at = excluded.updated_at`
@@ -269,6 +295,7 @@ async function upsertUnclaimedOrders(db, entry) {
       entry.pauseMode ?? null,
       entry.pauseResumesAt ?? null,
       entry.graceUntilMs ?? null,
+      entry.customerPortalUrl ?? null,
       entry.status ?? null,
       entry.claimedBy ?? null,
       entry.createdAt || now,
@@ -348,50 +375,52 @@ async function deleteDeviceRow(db, installationId) {
 
 async function ensureEntitlementsSchema(db) {
   if (cacheGet("schema_ok")) return;
-  await db.prepare(SCHEMA_SQL).run();
+  for (const statement of SCHEMA_STATEMENTS) await db.prepare(statement).run();
   cachePut("schema_ok", true, 10 * 60_000);
 }
 
-const SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS device_entitlements (
-  installation_id TEXT PRIMARY KEY NOT NULL,
-  user_email TEXT NOT NULL,
-  pro_tier TEXT NOT NULL DEFAULT 'unpaid',
-  expires_at_ms INTEGER,
-  subscription_status TEXT,
-  subscription_id TEXT,
-  renews_at TEXT,
-  ends_at TEXT,
-  pause_mode TEXT,
-  pause_resumes_at TEXT,
-  pause_started_at_ms INTEGER,
-  grace_until_ms INTEGER,
-  lemon_ref TEXT,
-  variant_id TEXT,
-  customer_portal_url TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_device_entitlements_user_email ON device_entitlements (user_email);
-CREATE INDEX IF NOT EXISTS idx_device_entitlements_lemon_ref ON device_entitlements (lemon_ref);
-CREATE TABLE IF NOT EXISTS unclaimed_orders (
-  lemon_ref TEXT PRIMARY KEY NOT NULL,
-  user_email TEXT NOT NULL,
-  pro_tier TEXT NOT NULL DEFAULT 'unpaid',
-  variant_id TEXT,
-  subscription_id TEXT,
-  renews_at TEXT,
-  ends_at TEXT,
-  pause_mode TEXT,
-  pause_resumes_at TEXT,
-  grace_until_ms INTEGER,
-  status TEXT,
-  claimed_by TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_unclaimed_orders_user_email ON unclaimed_orders (user_email);
-`;
+// D1's prepare() accepts a single statement, so the schema is a list.
+const SCHEMA_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS device_entitlements (
+    installation_id TEXT PRIMARY KEY NOT NULL,
+    user_email TEXT NOT NULL,
+    pro_tier TEXT NOT NULL DEFAULT 'unpaid',
+    expires_at_ms INTEGER,
+    subscription_status TEXT,
+    subscription_id TEXT,
+    renews_at TEXT,
+    ends_at TEXT,
+    pause_mode TEXT,
+    pause_resumes_at TEXT,
+    pause_started_at_ms INTEGER,
+    grace_until_ms INTEGER,
+    lemon_ref TEXT,
+    variant_id TEXT,
+    customer_portal_url TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_device_entitlements_user_email ON device_entitlements (user_email)",
+  "CREATE INDEX IF NOT EXISTS idx_device_entitlements_lemon_ref ON device_entitlements (lemon_ref)",
+  `CREATE TABLE IF NOT EXISTS unclaimed_orders (
+    lemon_ref TEXT PRIMARY KEY NOT NULL,
+    user_email TEXT NOT NULL,
+    pro_tier TEXT NOT NULL DEFAULT 'unpaid',
+    variant_id TEXT,
+    subscription_id TEXT,
+    renews_at TEXT,
+    ends_at TEXT,
+    pause_mode TEXT,
+    pause_resumes_at TEXT,
+    grace_until_ms INTEGER,
+    customer_portal_url TEXT,
+    status TEXT,
+    claimed_by TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_unclaimed_orders_user_email ON unclaimed_orders (user_email)",
+];
 
 // ---------------------------------------------------------------------------
 // Legacy Lemon Squeezy license-key bridge
@@ -403,11 +432,16 @@ CREATE INDEX IF NOT EXISTS idx_unclaimed_orders_user_email ON unclaimed_orders (
 const LEMON_LICENSE_API = "https://api.lemonsqueezy.com/v1/licenses";
 
 async function legacyLicenseValidate(env, licenseKey, email) {
-  const response = await fetch(LEMON_LICENSE_API, {
-    method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ license_key: licenseKey }),
-  });
+  let response;
+  try {
+    response = await fetch(LEMON_LICENSE_API, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ license_key: licenseKey }),
+    });
+  } catch {
+    return { ok: false, error: "Could not reach Lemon Squeezy to verify this license key. Try again shortly." };
+  }
   const data = await response.json().catch(() => ({}));
   if (!data.valid && !data.activated) {
     return { ok: false, error: data.error || "This Twimark Pro license key is not valid." };
@@ -425,21 +459,21 @@ async function legacyLicenseValidate(env, licenseKey, email) {
 async function parkLegacyLicense(db, env, licenseKey, email) {
   const found = await legacyLicenseValidate(env, licenseKey, email);
   if (!found.ok) return found;
-  const entry = {
-    lemonRef: `licenses/${licenseKey}`,
-    email: normalizeEmail(email),
-    proTier: "pro_lifetime", // legacy keys predate the three-tier pricing
-    variantId: null,
-    subscriptionId: null,
-    renewsAt: null,
-    endsAt: null,
-    pauseMode: null,
-    pauseResumesAt: null,
-    graceUntilMs: null,
-    status: "active",
-    claimedBy: null,
-    createdAt: null,
-    updatedAt: null,
+  const entry = {      lemonRef: `licenses/${licenseKey}`,
+      email: normalizeEmail(email),
+      proTier: "pro_lifetime", // legacy keys predate the three-tier pricing
+      variantId: null,
+      subscriptionId: null,
+      renewsAt: null,
+      endsAt: null,
+      pauseMode: null,
+      pauseResumesAt: null,
+      graceUntilMs: null,
+      customerPortalUrl: null,
+      status: "active",
+      claimedBy: null,
+      createdAt: null,
+      updatedAt: null,
   };
   await ensureEntitlementsSchema(db);
   await upsertUnclaimedOrders(db, entry);
@@ -538,6 +572,7 @@ async function onSubscriptionEvent(db, env, eventName, attributes) {
       pauseMode: patch.pauseMode,
       pauseResumesAt: patch.pauseResumesAt,
       graceUntilMs: null,
+      customerPortalUrl: patch.customerPortalUrl,
       status: patch.subscriptionStatus,
       claimedBy: null,
       createdAt: attributes.created_at,
@@ -591,7 +626,8 @@ async function onSubscriptionEvent(db, env, eventName, attributes) {
     endsAt: patch.endsAt,
     pauseMode: patch.pauseMode,
     pauseResumesAt: patch.pauseResumesAt,
-    graceUntilMs: patch.graceUntilMs ?? parked.graceUntilMs ?? null,
+    graceUntilMs: patch.graceUntilMs,
+    customerPortalUrl: patch.customerPortalUrl,
     status: patch.subscriptionStatus,
     claimedBy: deviceRow ? String(deviceRow.installationId) : parked.claimedBy,
     createdAt: parked.createdAt,
@@ -630,6 +666,9 @@ async function readDeviceRowByLemonRef(db, lemonRef) {
   };
 }
 
+// The webhook patch is the source of truth for refreshable fields: an explicit
+// null in the patch CLEARS the stored value (e.g. pause fields on resume,
+// grace on payment_success). Only identity fields fall back to the row.
 function mergeDevicePatch(existing, patch) {
   return {
     ...existing,
@@ -637,12 +676,12 @@ function mergeDevicePatch(existing, patch) {
     expiresAtMs: patch.proTier === "unpaid" ? Date.now() : existing.expiresAtMs,
     subscriptionStatus: patch.subscriptionStatus,
     subscriptionId: patch.subscriptionId || existing.subscriptionId,
-    renewsAt: patch.renewsAt ?? existing.renewsAt,
-    endsAt: patch.endsAt ?? existing.endsAt,
-    pauseMode: patch.pauseMode ?? existing.pauseMode,
-    pauseResumesAt: patch.pauseResumesAt ?? existing.pauseResumesAt,
-    pauseStartedAtMs: patch.pauseStartedAtMs ?? existing.pauseStartedAtMs,
-    graceUntilMs: patch.graceUntilMs === null ? existing.graceUntilMs : patch.graceUntilMs ?? existing.graceUntilMs,
+    renewsAt: patch.renewsAt,
+    endsAt: patch.endsAt,
+    pauseMode: patch.pauseMode,
+    pauseResumesAt: patch.pauseResumesAt,
+    pauseStartedAtMs: patch.pauseStartedAtMs,
+    graceUntilMs: patch.graceUntilMs,
     variantId: patch.variantId || existing.variantId,
     customerPortalUrl: patch.customerPortalUrl || existing.customerPortalUrl,
     createdAt: existing.createdAt,
@@ -653,7 +692,10 @@ function mergeDevicePatch(existing, patch) {
 // Derive the public entitlement state for a device row.
 function entitlementState(ent, now = Date.now()) {
   if (!ent?.proTier || ent.proTier === "unpaid") {
-    return { pro: false, tier: "free", state: "unpaid" };
+    const status = String(ent?.subscriptionStatus || "").toLowerCase();
+    const ended = ["cancelled", "expired", "refunded", "payment_failed", "suspended"].includes(status)
+      && (!(ent?.graceUntilMs) || ent.graceUntilMs <= now);
+    return { pro: false, tier: "free", state: ended ? status : "unpaid" };
   }
   if (ent.proTier === "pro_lifetime") {
     return { pro: true, tier: ent.proTier, state: "lifetime" };
@@ -872,7 +914,7 @@ async function activationHandler(request, env) {
       graceUntilMs: claimable.graceUntilMs ?? null,
       lemonRef: claimable.lemonRef,
       variantId: claimable.variantId,
-      customerPortalUrl: null,
+      customerPortalUrl: claimable.customerPortalUrl || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -955,24 +997,31 @@ const UPGRADE_PLANS = [
     id: "monthly",
     title: "Monthly",
     badge: null,
+    cta: "Select Pro",
+    per: "/ month",
+    billed: null,
     callout: "Cancel anytime",
-    value: "Perfect if you just want NotebookLM-ready exports as long as you need them.",
+    features: ["Research-Grade Structuring", "Unlimited bookmark exports"],
     envName: "LS_CHECKOUT_MONTHLY_URL",
   },
   {
     id: "annual",
     title: "Annual",
     badge: "Most Popular",
+    cta: "Upgrade to Pro",
+    per: "/ month",
+    billed: "Billed as $49 annually",
     callout: "Saves 32% compared to monthly",
-    value: "Best for power bookmarkers. Lock in the lower monthly-equivalent rate.",
+    features: ["Research-Grade Structuring", "Unlimited bookmark exports"],
     envName: "LS_CHECKOUT_ANNUAL_URL",
   },
   {
     id: "lifetime",
-    title: "Lifetime",
+    title: "Founding Pass",
     badge: "Early Adopter",
-    callout: "No recurring charges. Only available during initial launch window.",
-    value: "Pay once, keep Twimark Pro forever. No subscription.",
+    cta: "Claim Pass",
+    features: ["Lifetime access", "All future Twimark perks"],
+    callout: "No recurring charges. Limited to the first 50 users.",
     envName: "LS_CHECKOUT_LIFETIME_URL",
   },
 ];
@@ -1005,13 +1054,23 @@ async function fetchLivePrices(env) {
   return livePrices;
 }
 
-function planCopy(tier, live) {
+function planCopy(tier, live, plan) {
   const fallback = PRICING_FALLBACK[tier];
   if (live) {
     const dollars = (live.cents / 100).toFixed(2).replace(/\.00$/, "");
-    return { price: dollars, per: fallback.per, billed: fallback.billed, callout: fallback.callout };
+    return {
+      price: dollars,
+      per: plan?.per || fallback.per,
+      billed: plan?.billed || fallback.billed,
+      callout: plan?.callout || fallback.callout,
+    };
   }
-  return fallback;
+  return {
+    price: fallback.price,
+    per: plan?.per || fallback.per,
+    billed: plan?.billed || fallback.billed,
+    callout: plan?.callout || fallback.callout,
+  };
 }
 
 function renderUpgradePage(request, env, livePrices) {
@@ -1022,19 +1081,20 @@ function renderUpgradePage(request, env, livePrices) {
 
   const cards = UPGRADE_PLANS.map((plan) => {
     const live = livePrices[plan.id];
-    const copy = planCopy(plan.id, live);
+    const copy = planCopy(plan.id, live, plan);
     const checkoutUrl = env[plan.envName];
     void checkoutUrl;
+    const featureItems = (plan.features || []).map((feature) => `<li>${escapeHtml(feature)}</li>`).join("");
     return `
       <section class="plan${plan.badge ? " anchor" : ""}" data-plan="${plan.id}">
         ${plan.badge ? `<span class="badge">${escapeHtml(plan.badge)}</span>` : ""}
         <h2>${escapeHtml(plan.title)}</h2>
         <p class="price">${escapeHtml(copy.price)} <small>${escapeHtml(copy.per)}</small></p>
         ${copy.billed ? `<p class="billed">${escapeHtml(copy.billed)}</p>` : ""}
-        <p class="value">${escapeHtml(plan.value)}</p>
+        <ul class="features">${featureItems}</ul>
         <p class="callout">${escapeHtml(copy.callout)}</p>
         <button class="buy" type="button" data-checkout="${escapeHtml(checkoutUrl)}" data-plan="${plan.id}">
-          Continue
+          ${escapeHtml(plan.cta)}
         </button>
       </section>`;
   }).join("");
@@ -1092,8 +1152,10 @@ function renderUpgradePage(request, env, livePrices) {
   .plan h2 { margin:10px 0 0; font-size:15px; }
   .price { margin:10px 0 2px; font-size:28px; font-weight:850; }
   .price small { font-size:12px; color:#607084; font-weight:600; }
-  .billed, .callout, .value { color:#607084; font-size:11px; margin:2px 0; }
+  .billed, .callout { color:#607084; font-size:11px; margin:2px 0; }
   .callout { margin-top:auto; padding-top:10px; font-weight:600; color:#236241; }
+  .features { margin:8px 0 0; padding:0 0 0 16px; color:#42546a; font-size:11px; }
+  .features li { margin:3px 0; }
   .buy { margin-top:12px; min-height:40px; border:0; border-radius:10px; font:inherit; font-weight:750; cursor:pointer; background:linear-gradient(135deg,#1d9bf0,#2572d6); color:#fff; }
   .plan:not(.anchor) .buy { background:#fff; color:#172033; border:1px solid #d8e2ec; }
   @media (max-width:640px) { .plans { grid-template-columns:1fr; } }
@@ -1122,6 +1184,17 @@ async function upgradeHandler(request, env) {
 }
 
 // ---------------------------------------------------------------------------
+// GET /activate — Lemon Squeezy receipt-button handoff page.
+// The store replaces [license_key] / [email] placeholders after purchase; this
+// page relays the pair to the installed extension, which activates the device.
+// ---------------------------------------------------------------------------
+
+function handoffPage(env, licenseKey, email) {
+  const data = JSON.stringify({ licenseKey, email }).replace(/</g, "\\u003c");
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Activating Twimark Pro</title><style>body{margin:0;display:grid;min-height:100vh;place-items:center;background:#f4f7fb;color:#172033;font:16px system-ui}.card{max-width:440px;margin:20px;padding:28px;border:1px solid #dbe5f1;border-radius:18px;background:#fff;box-shadow:0 16px 35px #23415a20}h1{margin:0 0 8px}p{line-height:1.5;color:#526477}</style><div class="card"><h1 id="title">Activating Twimark Pro…</h1><p id="message">Please keep this page open for a moment.</p></div><script>const purchase=${data};const title=document.getElementById('title');const message=document.getElementById('message');if(!globalThis.chrome?.runtime?.sendMessage){title.textContent='Open Twimark to activate';message.textContent='Twimark is not installed in this browser. Install it, then use the license key in your receipt.'}else{chrome.runtime.sendMessage('${env.EXTENSION_ID}',{action:'activate_purchase',...purchase},(result)=>{if(chrome.runtime.lastError||!result?.ok){title.textContent='Activation needs a quick retry';message.textContent=result?.error||'Open Twimark, choose “Log in for Pro”, and enter the email (and optional license key) from your receipt.';return}title.textContent='Twimark Pro is active!';message.textContent='Return to Twimark and export your full bookmark library.'})}</script></html>`;
+}
+
+// ---------------------------------------------------------------------------
 // Routing
 // ---------------------------------------------------------------------------
 
@@ -1142,6 +1215,14 @@ async function handleRequest(request, env) {
 
   if (path === "/upgrade" && request.method === "GET") {
     return upgradeHandler(request, env);
+  }
+
+  if (path === "/activate" && request.method === "GET") {
+    const licenseKey = url.searchParams.get("license_key") || "";
+    const email = url.searchParams.get("email") || "";
+    return new Response(handoffPage(env, licenseKey, email), {
+      headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" },
+    });
   }
 
   if (path === "/" && request.method === "GET") return jsonOf(ROOT_INFO);

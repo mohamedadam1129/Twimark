@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.7.0 - Unreleased
+
+### Billing
+- Moved Pro entitlements server-side: the license gateway now owns a Lemon Squeezy webhook receiver (`/webhooks`) with HMAC-SHA256 (`X-Signature`) verification and a D1-backed entitlement store.
+- Added three-tier pricing: Monthly ($6/mo), Annual ($4.08/mo billed $49/yr, "Most Popular"), and Founding Pass ($69 one-time, limited to the first 50 users).
+- `order_created` provisions lifetime entitlements (`expires_at = NULL`, no renewal checks); `subscription_created/updated/cancelled/expired/paused/resumed/payment_failed/payment_success` drive subscription entitlements.
+- Failed payments open a 72-hour grace window with an in-extension "Payment issue" banner linking to the Lemon Squeezy customer portal; successful payments clear it.
+- Purchases are parked by email and claimed per device from the extension ("Log in for Pro" by checkout email); refunds and cancellations downgrade to free, and deactivation frees the device seat.
+- Added the in-extension pricing overlay at `GET /upgrade` (embedded-iframe friendly) with per-plan Lemon Squeezy checkout links and `checkout[custom]` attribution.
+- Kept the receipt-button handoff page (`GET /activate?license_key=[license_key]&email=[email]`) and bridged legacy pre-2.7 license keys into account entitlements as lifetime grants.
+
+### Paywall UX
+- Free exports are no longer fully blocked: each thread exports its first 3 posts cleanly; the rest collapse into a structured "[Tweets 4–N withheld]" block that pitches Pro.
+- Added the truncated-thread upsell modal with a blurred full-thread preview, a high-contrast "Export Full Thread with Pro" CTA, and a ghost "Continue with 3-tweet preview only" option.
+- Renamed "Smart Thread Stitching" to **Research-Grade Structuring** across the popup, upgrade modal, and pricing copy.
+- Added the three Pro micro-badges: Context Preservation, Noise Cleansing, and Audio Overview Ready.
+- Added the Twimark attribution footer to free exports and a Pro-only "Remove Twimark attribution footer" toggle.
+
 ## 2.6.0 - Unreleased
 
 - Added Pro Smart Thread Stitching: extracts same-author conversation posts from X and exports them as one Markdown thread.

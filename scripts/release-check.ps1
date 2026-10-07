@@ -14,6 +14,8 @@ if ($manifest.host_permissions -contains 'https://*.workers.dev/*') { throw 'Rep
 
 $licenseConfig = Get-Content (Join-Path $projectRoot 'license-config.js') -Raw
 if ($licenseConfig -match 'TWIMARK_LICENSE_API_BASE\s*=\s*""') { throw 'Set TWIMARK_LICENSE_API_BASE to the deployed Worker URL before release.' }
+if ($licenseConfig -match 'PLAN-UUID') { throw 'Replace the placeholder TWIMARK_PLANS checkout URLs (MONTHLY/ANNUAL/LIFETIME-PLAN-UUID) with the Lemon Squeezy template links before release.' }
+if ($licenseConfig -notmatch 'TWIMARK_FREE_POSTS_PER_THREAD') { throw 'license-config.js must define TWIMARK_FREE_POSTS_PER_THREAD for the free-tier truncation hook.' }
 
 $node = 'C:\Users\moham\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe'
 if (Test-Path $node) {

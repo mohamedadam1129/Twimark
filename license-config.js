@@ -1,21 +1,23 @@
 // Twimark Pro licensing — shared between popup.js, background.js and tests.
 // Checkout URLs and plan copy for the three pricing tiers.
-// TS/JS shared so the same config drives both the pricing UI and background.js.
 
 // The gateway Worker that verifies entitlements and owns the webhook receiver.
 const TWIMARK_LICENSE_API_BASE = "https://twimark-license-gateway.twimarkworker.workers.dev";
 
-// Pricing table anchors (psychological anchor: monthly left, annual center, lifetime right).
-// Checkout URLs here must match the Lemon Squeezy store admin template links.
+// Pricing table anchors: monthly left, annual center ("Most Popular"),
+// Founding Pass right. Checkout URLs must match the Lemon Squeezy store admin
+// template links for each tier.
 const TWIMARK_PLANS = [
   {
     id: "monthly",
     checkoutUrl: "https://twimark.lemonsqueezy.com/checkout/buy/MONTHLY-PLAN-UUID",
     title: "Monthly",
     badge: null,
+    cta: "Select Pro",
     price: "$6",
     per: "/ month",
     billed: null,
+    features: ["Research-Grade Structuring", "Unlimited bookmark exports"],
     callout: "Cancel anytime",
   },
   {
@@ -23,20 +25,24 @@ const TWIMARK_PLANS = [
     checkoutUrl: "https://twimark.lemonsqueezy.com/checkout/buy/ANNUAL-PLAN-UUID",
     title: "Annual",
     badge: "Most Popular",
+    cta: "Upgrade to Pro",
     price: "$4.08",
     per: "/ month",
     billed: "Billed as $49 annually",
+    features: ["Research-Grade Structuring", "Unlimited bookmark exports"],
     callout: "Saves 32% compared to monthly",
   },
   {
     id: "lifetime",
     checkoutUrl: "https://twimark.lemonsqueezy.com/checkout/buy/LIFETIME-PLAN-UUID",
-    title: "Lifetime",
+    title: "Founding Pass",
     badge: "Early Adopter",
+    cta: "Claim Pass",
     price: "$69",
     per: "one-time",
     billed: null,
-    callout: "No recurring charges. Only activation-based. Only available during initial launch window.",
+    features: ["Lifetime access", "All future Twimark perks"],
+    callout: "No recurring charges. Limited to the first 50 users.",
   },
 ];
 
@@ -47,3 +53,21 @@ const TWIMARK_GRACE_HOURS = 72;
 
 // How often the popup re-syncs entitlement state while open (ms).
 const TWIMARK_LICENSE_SYNC_INTERVAL_MS = 60_000;
+
+// --- Free-tier truncation hook ----------------------------------------------
+// Free exports are never fully blocked: the first posts of every thread are
+// exported cleanly, later posts are replaced with a structured preview block.
+const TWIMARK_FREE_POSTS_PER_THREAD = 3;
+
+const TWIMARK_WITHHELD_BLOCK = [
+  "---",
+  "[Tweets {FROM}–{TO} withheld]",
+  "💡 NotebookLM requires the full thread context to generate hallucination-free Audio Overviews and complete study guides.",
+  "👉 Unlock complete thread structuring with Twimark Pro: https://twimark.lemonsqueezy.com/",
+  "---",
+].join("\n");
+
+// --- Viral footer -------------------------------------------------------------
+// Appended to every free export. Pro users can remove it in the popup.
+const TWIMARK_ATTRIBUTION_FOOTER =
+  "*Source compiled from X via [Twimark](https://twimark.app) — One-click research-grade exports for NotebookLM.*";

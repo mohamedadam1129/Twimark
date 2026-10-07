@@ -1,6 +1,7 @@
 const SCAN_KEY = "scan_state_v2";
 const EXPORTED_IDS_KEY = "exported_tweet_ids_v2";
-const PRO_LICENSE_KEY = "pro_license_v1";
+const ENTITLEMENT_KEY = "twimark_entitlement_v1";
+const PRO_LICENSE_KEY = "pro_license_v1"; // legacy pre-2.7 license keys, kept as recovery info
 const INSTALLATION_STORAGE_KEY = "installation_id_v1";
 const LICENSE_API_BASE = "https://twimark-license-gateway.twimarkworker.workers.dev";
 const THREAD_STITCH_DELAY_MS = 450;
@@ -73,24 +74,30 @@ async function installationId() {
   return id;
 }
 
+// Purchases land on the gateway as parked entitlements (via webhooks for the
+// three-tier plans, or via the legacy license-key bridge). The receipt handoff
+// page forwards { licenseKey?, email } here; we claim the purchase for this
+// installation. The entitlement itself lives server-side from now on.
 async function activatePurchasedLicense(licenseKey, email) {
-  if (typeof licenseKey !== "string" || typeof email !== "string" || !licenseKey.trim() || !email.trim()) {
-    return { ok: false, error: "The purchase link is missing a license key or email." };
+  if (typeof email !== "string" || !email.trim()) {
+    return { ok: false, error: "The purchase link is missing a checkout email." };
   }
+  const payload = { email: email.trim(), installationId: await installationId() };
+  if (typeof licenseKey === "string" && licenseKey.trim()) payload.licenseKey = licenseKey.trim();
+
   const response = await fetch(`${LICENSE_API_BASE}/activate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      licenseKey: licenseKey.trim(),
-      email: email.trim(),
-      installationId: await installationId()
-    })
+    body: JSON.stringify(payload)
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok || !data.ok || !data.instanceId) {
-    return { ok: false, error: data.error || "Could not activate this purchase." };
+  if (!response.ok || !data.ok || data.claimed === false) {
+    return { ok: false, error: data.error || "Could not activate this purchase. Open Twimark and try 'Log in for Pro'." };
   }
-  await chrome.storage.local.set({ [PRO_LICENSE_KEY]: { key: licenseKey.trim(), email: email.trim(), instanceId: data.instanceId } });
+  await chrome.storage.local.set({ [ENTITLEMENT_KEY]: { ...data, email: email.trim(), fetchedAt: Date.now() } });
+  if (payload.licenseKey) {
+    await chrome.storage.local.set({ [PRO_LICENSE_KEY]: { key: payload.licenseKey, email: email.trim(), instanceId: "" } });
+  }
   return { ok: true };
 }
 
