@@ -1082,8 +1082,8 @@ function renderUpgradePage(request, env, livePrices) {
   const cards = UPGRADE_PLANS.map((plan) => {
     const live = livePrices[plan.id];
     const copy = planCopy(plan.id, live, plan);
-    const checkoutUrl = env[plan.envName];
-    void checkoutUrl;
+    const checkoutUrl = env[plan.envName] || env.LS_STORE_URL || "";
+    if (!checkoutUrl) return ""; // no checkout configured: hide the card
     const featureItems = (plan.features || []).map((feature) => `<li>${escapeHtml(feature)}</li>`).join("");
     return `
       <section class="plan${plan.badge ? " anchor" : ""}" data-plan="${plan.id}">

@@ -5,12 +5,12 @@
 const TWIMARK_LICENSE_API_BASE = "https://twimark-license-gateway.twimarkworker.workers.dev";
 
 // Pricing table anchors: monthly left, annual center ("Most Popular"),
-// Founding Pass right. Checkout URLs must match the Lemon Squeezy store admin
-// template links for each tier.
+// Founding Pass right. All tiers share the store's single hosted checkout link
+// (plan selection happens inside the Lemon Squeezy checkout overlay).
 const TWIMARK_PLANS = [
   {
     id: "monthly",
-    checkoutUrl: "https://twimark.lemonsqueezy.com/checkout/buy/MONTHLY-PLAN-UUID",
+    checkoutUrl: "https://twimark.lemonsqueezy.com/checkout",
     title: "Monthly",
     badge: null,
     cta: "Select Pro",
@@ -22,7 +22,7 @@ const TWIMARK_PLANS = [
   },
   {
     id: "annual",
-    checkoutUrl: "https://twimark.lemonsqueezy.com/checkout/buy/ANNUAL-PLAN-UUID",
+    checkoutUrl: "https://twimark.lemonsqueezy.com/checkout",
     title: "Annual",
     badge: "Most Popular",
     cta: "Upgrade to Pro",
@@ -34,7 +34,7 @@ const TWIMARK_PLANS = [
   },
   {
     id: "lifetime",
-    checkoutUrl: "https://twimark.lemonsqueezy.com/checkout/buy/LIFETIME-PLAN-UUID",
+    checkoutUrl: "https://twimark.lemonsqueezy.com/checkout",
     title: "Founding Pass",
     badge: "Early Adopter",
     cta: "Claim Pass",
