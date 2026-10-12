@@ -18,12 +18,11 @@ LS_PRODUCT_ID = "904561"
 # LS_VARIANT_LIFETIME_ID = "123458"
 
 # Checkout URLs for the three tiers (used by the /upgrade pricing page).
-# All tiers share the store's single hosted checkout link (plan selection
-# happens inside the Lemon Squeezy checkout overlay). Leave blank to hide the
-# corresponding card.
-LS_CHECKOUT_MONTHLY_URL = "https://twimark.lemonsqueezy.com/checkout"
-LS_CHECKOUT_ANNUAL_URL = "https://twimark.lemonsqueezy.com/checkout"
-LS_CHECKOUT_LIFETIME_URL = "https://twimark.lemonsqueezy.com/checkout"
+# Each URL is a direct checkout for the named plan. Leave a URL blank to hide
+# the corresponding card.
+LS_CHECKOUT_MONTHLY_URL = "https://twimark.lemonsqueezy.com/checkout/buy/2ab824b7-c7ea-4654-970c-5ffb88a92390"
+LS_CHECKOUT_ANNUAL_URL = "https://twimark.lemonsqueezy.com/checkout/buy/5e5bce00-0c50-40aa-9341-2d50e34ec31a"
+LS_CHECKOUT_LIFETIME_URL = "https://twimark.lemonsqueezy.com/checkout/buy/607ea3fb-e923-4304-8037-a866c3a6e1c9"
 LS_STORE_URL = "https://twimark.lemonsqueezy.com/"
 
 # Origin the extension is allowed to call from (plus dev builds).

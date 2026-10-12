@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.0 - Release
+
+- Fixed the Pro purchase flow: Monthly, Annual, and Founding Pass now each open their own valid Lemon Squeezy checkout.
+- Removed the invalid shared checkout URL that returned a 404 when a customer chose a plan.
+
 ## 2.7.0 - Unreleased
 
 ### Billing

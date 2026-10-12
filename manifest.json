@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Twimark: Twitter Bookmark to NotebookLM AI Exporter",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "description": "Export X/Twitter bookmarks to AI-ready Markdown or CSV. Free preview; Pro unlocks the full library with Research-Grade Structuring.",
   "permissions": ["activeTab", "scripting", "storage", "downloads"],
   "host_permissions": ["https://twimark-license-gateway.twimarkworker.workers.dev/*", "https://x.com/*", "https://twitter.com/*"],
