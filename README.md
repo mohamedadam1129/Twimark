@@ -25,9 +25,9 @@ NotebookLM export requires an active Twimark Pro entitlement. Entitlements are d
 
 Before deploying:
 
-1. Create the D1 database: `wrangler d1 create twimark-entitlements`, paste its `database_id` into `workers/license-gateway/wrangler.toml`, and apply the schema once: `wrangler d1 execute twimark-entitlements --remote --file=./workers/schema.sql` (or let the gateway auto-create it on first request).
+1. Create the D1 database with `wrangler d1 create twimark-entitlements` and paste its `database_id` into `workers/license-gateway/wrangler.toml`. The gateway creates its entitlement tables automatically on its first activation or valid webhook request.
 2. In Lemon Squeezy → **Settings → Webhooks**, create a webhook pointing at `https://<worker>/webhooks`, subscribe to `order_created`, `order_refunded`, and all `subscription_*` events, then store the signing secret: `wrangler secret put LS_WEBHOOK_SECRET`.
-3. Fill in the variant IDs (`LS_VARIANT_MONTHLY_ID`, `LS_VARIANT_ANNUAL_ID`, `LS_VARIANT_LIFETIME_ID`) and the three template checkout URLs in `wrangler.toml`.
+3. Confirm the variant IDs (`LS_VARIANT_MONTHLY_ID`, `LS_VARIANT_ANNUAL_ID`, `LS_VARIANT_LIFETIME_ID`) and direct plan checkout URLs in `wrangler.toml` match the Lemon Squeezy plans.
 4. Deploy the Worker with Wrangler and set `ALLOWED_ORIGIN` to the production Chrome extension origin.
 5. Copy its HTTPS URL into `license-config.js`.
 6. Keep the exact Worker URL pattern in `manifest.json` (`host_permissions` + `externally_connectable`).

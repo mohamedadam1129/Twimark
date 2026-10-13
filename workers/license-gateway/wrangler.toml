@@ -13,9 +13,9 @@ compatibility_flags = ["nodejs_compat"]
 # LS_PRODUCT_ID is the shared product id, allow-listed on EVERY webhook.
 [vars]
 LS_PRODUCT_ID = "904561"
-# LS_VARIANT_MONTHLY_ID = "123456"
-# LS_VARIANT_ANNUAL_ID  = "123457"
-# LS_VARIANT_LIFETIME_ID = "123458"
+LS_VARIANT_MONTHLY_ID = "2218298"
+LS_VARIANT_ANNUAL_ID  = "1422837"
+LS_VARIANT_LIFETIME_ID = "2218299"
 
 # Checkout URLs for the three tiers (used by the /upgrade pricing page).
 # Each URL is a direct checkout for the named plan. Leave a URL blank to hide
@@ -30,12 +30,12 @@ LEMON_PRODUCT_ID = "904561"
 ALLOWED_ORIGIN = "chrome-extension://cnhlcmnabmfahcddbgfacjidkebamdbe"
 EXTENSION_ID = "cnhlcmnabmfahcddbgfacjidkebamdbe"
 
-# Populated by `wrangler d1 create twimark-entitlements` (copy the database_id).
-# Then apply the schema once: `wrangler d1 execute twimark-entitlements --remote --file=./workers/schema.sql`
+# Created in the production Cloudflare account. Apply the schema with:
+# `wrangler d1 execute twimark-entitlements --remote --file=./workers/schema.sql`
 [[d1_databases]]
 binding = "DB"
 database_name = "twimark-entitlements"
-database_id = "xxxxx-replace-me-xxxxx"
+database_id = "790f4c8e-1d6d-4cbe-bd12-15be061e5f61"
 
 # Durable Objects remain DISABLED. Lemon Squeezy's rate limits are generous
 # enough that we rely on webhook idempotency + the per-isolate token bucket in
