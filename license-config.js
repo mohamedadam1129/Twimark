@@ -5,12 +5,12 @@
 const TWIMARK_LICENSE_API_BASE = "https://twimark-license-gateway.twimarkworker.workers.dev";
 
 // Pricing table anchors: monthly left, annual center ("Most Popular"),
-// Founding Pass right. All tiers share the store's single hosted checkout link
-// (plan selection happens inside the Lemon Squeezy checkout overlay).
+// Founding Pass right. Each tier has its own hosted Lemon Squeezy checkout so
+// the plan selected in Twimark is the plan paid for at checkout.
 const TWIMARK_PLANS = [
   {
     id: "monthly",
-    checkoutUrl: "https://twimark.lemonsqueezy.com/checkout",
+    checkoutUrl: "https://twimark.lemonsqueezy.com/checkout/buy/2ab824b7-c7ea-4654-970c-5ffb88a92390",
     title: "Monthly",
     badge: null,
     cta: "Select Pro",
@@ -22,7 +22,7 @@ const TWIMARK_PLANS = [
   },
   {
     id: "annual",
-    checkoutUrl: "https://twimark.lemonsqueezy.com/checkout",
+    checkoutUrl: "https://twimark.lemonsqueezy.com/checkout/buy/5e5bce00-0c50-40aa-9341-2d50e34ec31a",
     title: "Annual",
     badge: "Most Popular",
     cta: "Upgrade to Pro",
@@ -34,7 +34,7 @@ const TWIMARK_PLANS = [
   },
   {
     id: "lifetime",
-    checkoutUrl: "https://twimark.lemonsqueezy.com/checkout",
+    checkoutUrl: "https://twimark.lemonsqueezy.com/checkout/buy/607ea3fb-e923-4304-8037-a866c3a6e1c9",
     title: "Founding Pass",
     badge: "Early Adopter",
     cta: "Claim Pass",

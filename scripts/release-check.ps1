@@ -23,6 +23,8 @@ if (Test-Path $node) {
     & $node --check (Join-Path $projectRoot $file)
     if ($LASTEXITCODE -ne 0) { throw "JavaScript syntax check failed: $file" }
   }
+  & $node (Join-Path $projectRoot 'test\content-scan.test.mjs')
+  if ($LASTEXITCODE -ne 0) { throw 'Content scanner regression test failed.' }
 }
 
 Write-Host "Release checks passed for Twimark v$($manifest.version)."

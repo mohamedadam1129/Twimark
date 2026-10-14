@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.8.1 - Release
+
+- Fixed bookmark scans that could remain stuck when X continued to move its virtual timeline after no new bookmarks remained.
+- Added a scanner regression test for the end-of-feed condition.
+
+## 2.8.0 - Release
+
+- Fixed the Pro purchase flow: Monthly, Annual, and Founding Pass now each open their own valid Lemon Squeezy checkout.
+- Removed the invalid shared checkout URL that returned a 404 when a customer chose a plan.
+
 ## 2.7.0 - Unreleased
 
 ### Billing

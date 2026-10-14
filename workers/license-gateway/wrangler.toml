@@ -13,17 +13,16 @@ compatibility_flags = ["nodejs_compat"]
 # LS_PRODUCT_ID is the shared product id, allow-listed on EVERY webhook.
 [vars]
 LS_PRODUCT_ID = "904561"
-# LS_VARIANT_MONTHLY_ID = "123456"
-# LS_VARIANT_ANNUAL_ID  = "123457"
-# LS_VARIANT_LIFETIME_ID = "123458"
+LS_VARIANT_MONTHLY_ID = "2218298"
+LS_VARIANT_ANNUAL_ID  = "1422837"
+LS_VARIANT_LIFETIME_ID = "2218299"
 
 # Checkout URLs for the three tiers (used by the /upgrade pricing page).
-# All tiers share the store's single hosted checkout link (plan selection
-# happens inside the Lemon Squeezy checkout overlay). Leave blank to hide the
-# corresponding card.
-LS_CHECKOUT_MONTHLY_URL = "https://twimark.lemonsqueezy.com/checkout"
-LS_CHECKOUT_ANNUAL_URL = "https://twimark.lemonsqueezy.com/checkout"
-LS_CHECKOUT_LIFETIME_URL = "https://twimark.lemonsqueezy.com/checkout"
+# Each URL is a direct checkout for the named plan. Leave a URL blank to hide
+# the corresponding card.
+LS_CHECKOUT_MONTHLY_URL = "https://twimark.lemonsqueezy.com/checkout/buy/2ab824b7-c7ea-4654-970c-5ffb88a92390"
+LS_CHECKOUT_ANNUAL_URL = "https://twimark.lemonsqueezy.com/checkout/buy/5e5bce00-0c50-40aa-9341-2d50e34ec31a"
+LS_CHECKOUT_LIFETIME_URL = "https://twimark.lemonsqueezy.com/checkout/buy/607ea3fb-e923-4304-8037-a866c3a6e1c9"
 LS_STORE_URL = "https://twimark.lemonsqueezy.com/"
 
 # Origin the extension is allowed to call from (plus dev builds).
@@ -31,8 +30,8 @@ LEMON_PRODUCT_ID = "904561"
 ALLOWED_ORIGIN = "chrome-extension://cnhlcmnabmfahcddbgfacjidkebamdbe"
 EXTENSION_ID = "cnhlcmnabmfahcddbgfacjidkebamdbe"
 
-# Populated by `wrangler d1 create twimark-entitlements` (copy the database_id).
-# Then apply the schema once: `wrangler d1 execute twimark-entitlements --remote --file=./workers/schema.sql`
+# Created in the production Cloudflare account. Apply the schema with:
+# `wrangler d1 execute twimark-entitlements --remote --file=./workers/schema.sql`
 [[d1_databases]]
 binding = "DB"
 database_name = "twimark-entitlements"

@@ -2,8 +2,12 @@
   if (window.__twimarkScannerInstalled) return;
   window.__twimarkScannerInstalled = true;
 
-  const MAX_STALLED_ROUNDS = 8;
+  // X virtualizes its timeline and can continue changing scroll positions after
+  // the final bookmark has loaded. Completion must therefore be based on new
+  // unique posts, not whether a scroll call happened to move a container.
+  const MAX_NO_NEW_ROUNDS = 12;
   const WAIT_AFTER_SCROLL_MS = 1800;
+  const MAX_SCAN_DURATION_MS = 10 * 60 * 1000;
   const seenIds = new Set();
   let running = false;
 
@@ -59,39 +63,43 @@
   }
 
   async function waitForTimelineChange(previousCount) {
-    await Promise.race([
-      new Promise((resolve) => {
-        const observer = new MutationObserver(() => {
-          if (document.querySelectorAll('article[data-testid="tweet"]').length !== previousCount) {
-            observer.disconnect();
-            resolve();
-          }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-        setTimeout(() => { observer.disconnect(); resolve(); }, WAIT_AFTER_SCROLL_MS);
-      }),
-      sleep(WAIT_AFTER_SCROLL_MS)
-    ]);
+    await new Promise((resolve) => {
+      let finished = false;
+      let timeout;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timeout);
+        observer.disconnect();
+        resolve();
+      };
+      const observer = new MutationObserver(() => {
+        if (document.querySelectorAll('article[data-testid="tweet"]').length !== previousCount) {
+          finish();
+        }
+      });
+      timeout = setTimeout(finish, WAIT_AFTER_SCROLL_MS);
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
   }
 
   async function scan() {
-    let stalledRounds = 0;
+    let noNewRounds = 0;
+    const startedAt = Date.now();
     try {
-      while (stalledRounds < MAX_STALLED_ROUNDS) {
+      while (noNewRounds < MAX_NO_NEW_ROUNDS && Date.now() - startedAt < MAX_SCAN_DURATION_MS) {
         const articles = [...document.querySelectorAll('article[data-testid="tweet"]')];
         const batch = articles.map(scrape).filter(Boolean);
         if (batch.length) await chrome.runtime.sendMessage({ action: "record_bookmarks", bookmarks: batch });
 
         const target = scrollTarget();
-        const beforeTop = target?.scrollTop || window.scrollY;
         const beforeCount = articles.length;
         window.scrollBy({ top: Math.max(window.innerHeight * 0.9, 700), behavior: "auto" });
         target?.scrollBy?.({ top: Math.max(window.innerHeight * 0.9, 700), behavior: "auto" });
         await waitForTimelineChange(beforeCount);
 
-        const moved = (target?.scrollTop || window.scrollY) > beforeTop;
-        if (batch.length || moved) stalledRounds = 0;
-        else stalledRounds += 1;
+        if (batch.length) noNewRounds = 0;
+        else noNewRounds += 1;
       }
       await chrome.runtime.sendMessage({ action: "complete_scan" });
     } catch (error) {
