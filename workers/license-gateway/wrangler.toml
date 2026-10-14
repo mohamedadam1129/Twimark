@@ -36,7 +36,7 @@ EXTENSION_ID = "cnhlcmnabmfahcddbgfacjidkebamdbe"
 [[d1_databases]]
 binding = "DB"
 database_name = "twimark-entitlements"
-database_id = "xxxxx-replace-me-xxxxx"
+database_id = "790f4c8e-1d6d-4cbe-bd12-15be061e5f61"
 
 # Durable Objects remain DISABLED. Lemon Squeezy's rate limits are generous
 # enough that we rely on webhook idempotency + the per-isolate token bucket in

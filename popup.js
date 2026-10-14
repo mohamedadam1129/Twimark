@@ -232,8 +232,10 @@ async function refreshEntitlement({ quiet = false, force = false } = {}) {
 
 async function activateStoredPurchase({ email, licenseKey, quiet = false } = {}) {
   if (!releaseConfigured() || !email) return null;
-  const payload = { email, installationId: await installationId() };
-  if (licenseKey) payload.licenseKey = licenseKey;
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanKey = typeof licenseKey === "string" ? licenseKey.replace(/[\u200B-\u200D\uFEFF]/g, "").trim() : "";
+  const payload = { email: cleanEmail, installationId: await installationId() };
+  if (cleanKey) payload.licenseKey = cleanKey;
   try {
     const response = await fetch(`${TWIMARK_LICENSE_API_BASE}/activate`, {
       method: "POST",
@@ -498,11 +500,15 @@ document.getElementById("continueNotebook").addEventListener("click", async () =
 });
 
 activateLicenseBtn.addEventListener("click", async () => {
-  const key = licenseKeyInput.value.trim();
-  const email = licenseEmailInput.value.trim();
-  if (!email) return setLicenseMessage("Enter the checkout email for your purchase.");
+  const key = licenseKeyInput.value.replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
+  const email = licenseEmailInput.value.trim().toLowerCase();
+
+  if (!email || !email.includes("@")) return setLicenseMessage("Enter the checkout email for your purchase.");
   if (!key && !entitlementEmail) return setLicenseMessage("Enter the email you used at Lemon Squeezy, or paste your legacy license key.");
+
   activateLicenseBtn.disabled = true;
+  setLicenseMessage("Checking license...");
+
   try {
     const entitlement = await activateStoredPurchase({ email, licenseKey: key || legacyLicense?.key });
     if (!entitlement) throw new Error(licenseMessage.textContent || "Activation failed.");
