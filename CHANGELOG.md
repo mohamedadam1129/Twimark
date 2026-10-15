@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.8.2 - Release
+
+- Fixed bookmark scans running until the 10-minute cap: the scan loop passed the array index into `scrape()`, which disabled de-duplication for the first visible post so every round looked like it found something new.
+- Rebuilt `test/content-scan.test.mjs` as a 22-case headless suite (status permalinks, media extraction, scraping, the scan loop and chronological thread stitching) with a dependency-free fake DOM.
+- Licensing: Lemon Squeezy license validation now uses `/v1/licenses/validate` with an `/activate` fallback; the same purchase can now be activated on up to 3 devices; license keys and emails are sanitised on input.
+- `release-check.ps1` now uses Node from PATH (and fails if missing) instead of a hard-coded path, and also runs the license gateway tests.
+- Root `.wrangler/` cache is now git-ignored.
+
 ## 2.8.1 - Release
 
 - Fixed bookmark scans that could remain stuck when X continued to move its virtual timeline after no new bookmarks remained.

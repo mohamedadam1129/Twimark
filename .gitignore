@@ -5,7 +5,8 @@ release/
 *.zip
 
 # Cloudflare Wrangler local state
-workers/**/.wrangler/
+.wrangler/
+**/.wrangler/
 
 # Local browser/editor state
 .DS_Store

@@ -17,14 +17,19 @@ if ($licenseConfig -match 'TWIMARK_LICENSE_API_BASE\s*=\s*""') { throw 'Set TWIM
 if ($licenseConfig -match 'PLAN-UUID') { throw 'Replace the placeholder TWIMARK_PLANS checkout URLs (MONTHLY/ANNUAL/LIFETIME-PLAN-UUID) with the Lemon Squeezy template links before release.' }
 if ($licenseConfig -notmatch 'TWIMARK_FREE_POSTS_PER_THREAD') { throw 'license-config.js must define TWIMARK_FREE_POSTS_PER_THREAD for the free-tier truncation hook.' }
 
-$node = 'C:\Users\moham\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe'
-if (Test-Path $node) {
-  foreach ($file in @('background.js', 'content.js', 'popup.js', 'license-config.js', 'workers/license-gateway/src/index.js')) {
-    & $node --check (Join-Path $projectRoot $file)
-    if ($LASTEXITCODE -ne 0) { throw "JavaScript syntax check failed: $file" }
-  }
-  & $node (Join-Path $projectRoot 'test\content-scan.test.mjs')
-  if ($LASTEXITCODE -ne 0) { throw 'Content scanner regression test failed.' }
+# Use whichever Node is on PATH. Fail loudly if none is found: silently
+# skipping the syntax and regression checks would let a broken build ship.
+$nodeCommand = Get-Command node -ErrorAction SilentlyContinue
+if (-not $nodeCommand) { throw 'Node.js was not found on PATH. Install Node 18+ so release checks can run.' }
+$node = $nodeCommand.Source
+
+foreach ($file in @('background.js', 'content.js', 'popup.js', 'license-config.js', 'workers/license-gateway/src/index.js')) {
+  & $node --check (Join-Path $projectRoot $file)
+  if ($LASTEXITCODE -ne 0) { throw "JavaScript syntax check failed: $file" }
 }
+& $node (Join-Path $projectRoot 'test\content-scan.test.mjs')
+if ($LASTEXITCODE -ne 0) { throw 'content.js test suite failed.' }
+& $node (Join-Path $projectRoot 'workers\license-gateway\test\run-tests.mjs')
+if ($LASTEXITCODE -ne 0) { throw 'License gateway test suite failed.' }
 
 Write-Host "Release checks passed for Twimark v$($manifest.version)."

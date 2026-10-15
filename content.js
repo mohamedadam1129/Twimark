@@ -89,7 +89,9 @@
     try {
       while (noNewRounds < MAX_NO_NEW_ROUNDS && Date.now() - startedAt < MAX_SCAN_DURATION_MS) {
         const articles = [...document.querySelectorAll('article[data-testid="tweet"]')];
-        const batch = articles.map(scrape).filter(Boolean);
+        // Wrap scrape: Array.map passes the index as the second argument, which
+        // would disable deduplication for the first article (index 0).
+        const batch = articles.map((article) => scrape(article)).filter(Boolean);
         if (batch.length) await chrome.runtime.sendMessage({ action: "record_bookmarks", bookmarks: batch });
 
         const target = scrollTarget();
